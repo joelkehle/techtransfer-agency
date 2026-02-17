@@ -32,6 +32,20 @@ go run ./cmd/agent-bus-v2
 
 Server listens on `:8080` (or `PORT`).
 
+### Patent Team Demo (End-to-End Use Case)
+
+Run a concrete multi-agent workflow for PDF invention screening:
+
+```bash
+go run ./cmd/patent-team --pdf /absolute/path/to/disclosure.pdf --case-id CASE-2026-001
+```
+
+This command starts a local in-process bus by default and runs:
+
+- `coordinator -> intake -> pdf-extractor -> patent-agent -> reporter -> coordinator`
+
+Details: `docs/PATENT_TEAM.md`
+
 ### Runtime Options
 
 - `STORE_BACKEND`:
