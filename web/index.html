@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concierge — Document Submission</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <h1>Concierge</h1>
+    <p class="subtitle">Document Submission Portal</p>
+
+    <!-- Submission View -->
+    <div id="view-submit">
+      <div id="drop-zone" tabindex="0" role="button" aria-label="Upload a file by dragging it here or clicking to browse">
+        <div class="drop-zone-content">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p>Drag and drop a file here, or click to browse</p>
+          <p id="file-name" class="file-name"></p>
+        </div>
+        <input type="file" id="file-input" hidden>
+      </div>
+
+      <div class="form-group">
+        <label for="case-id">Case ID <span class="optional">(optional)</span></label>
+        <input type="text" id="case-id" placeholder="e.g. CASE-2026-042">
+      </div>
+
+      <fieldset id="workflow-list">
+        <legend>Select Workflows</legend>
+        <div id="workflow-checkboxes">
+          <p class="loading-msg">Loading available workflows...</p>
+        </div>
+      </fieldset>
+
+      <div id="submit-error" class="error-msg" hidden></div>
+
+      <button id="btn-submit" disabled>Submit</button>
+    </div>
+
+    <!-- Status View -->
+    <div id="view-status" hidden>
+      <h2>Submission Status</h2>
+      <p class="token-display">Token: <code id="status-token"></code></p>
+
+      <ul id="workflow-status-list"></ul>
+
+      <div id="status-error" class="error-msg" hidden></div>
+
+      <button id="btn-new" class="btn-secondary">New Submission</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
