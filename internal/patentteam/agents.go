@@ -194,7 +194,7 @@ func HandlePatentAgentMessage(ctx context.Context, client *Client, agentID, secr
 		return err
 	}
 
-	assessment := EvaluatePatentEligibility(payload.CaseID, payload.ExtractedText)
+	assessment := EvaluatePatentEligibility(ctx, payload.CaseID, payload.ExtractedText)
 	blob, _ := json.Marshal(assessment)
 
 	_, err := client.SendMessage(

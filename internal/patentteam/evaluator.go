@@ -1,6 +1,9 @@
 package patentteam
 
 import (
+	"context"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -27,7 +30,19 @@ type PatentAssessment struct {
 	Disclaimer        string      `json:"disclaimer"`
 }
 
-func EvaluatePatentEligibility(caseID, extractedText string) PatentAssessment {
+func EvaluatePatentEligibility(ctx context.Context, caseID, extractedText string) PatentAssessment {
+	if os.Getenv("ANTHROPIC_API_KEY") != "" {
+		assessment, err := EvaluatePatentEligibilityLLM(ctx, caseID, extractedText)
+		if err != nil {
+			log.Printf("LLM evaluator failed, falling back to keyword heuristic: %v", err)
+		} else {
+			return assessment
+		}
+	}
+	return evaluatePatentEligibilityKeyword(caseID, extractedText)
+}
+
+func evaluatePatentEligibilityKeyword(caseID, extractedText string) PatentAssessment {
 	text := strings.ToLower(strings.TrimSpace(extractedText))
 	length := len(text)
 
