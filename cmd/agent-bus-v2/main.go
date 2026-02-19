@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +12,9 @@ import (
 )
 
 func main() {
+	dbFlag := flag.String("db", "", "path to SQLite database file (overrides DB_PATH env var)")
+	flag.Parse()
+
 	addr := ":8080"
 	if port := os.Getenv("PORT"); port != "" {
 		addr = ":" + port
@@ -30,26 +34,40 @@ func main() {
 		MaxObserveEvents:       50000,
 	}
 
-	var store bus.API
-	backend := os.Getenv("STORE_BACKEND")
-	if backend == "" {
-		backend = "persistent"
+	// Resolve DB path: --db flag > DB_PATH env > empty (use legacy backend).
+	dbPath := *dbFlag
+	if dbPath == "" {
+		dbPath = os.Getenv("DB_PATH")
 	}
 
-	switch backend {
-	case "memory":
-		store = bus.NewStore(cfg)
-	default:
-		statePath := os.Getenv("STATE_FILE")
-		if statePath == "" {
-			statePath = "./data/state.json"
-		}
-		ps, err := bus.NewPersistentStore(statePath, cfg)
+	var store bus.API
+	if dbPath != "" {
+		ss, err := bus.NewSQLiteStore(dbPath, cfg)
 		if err != nil {
-			log.Fatalf("failed to initialize persistent store (%s): %v", statePath, err)
+			log.Fatalf("failed to initialize sqlite store (%s): %v", dbPath, err)
 		}
-		store = ps
-		log.Printf("using persistent store at %s", statePath)
+		store = ss
+		log.Printf("using sqlite store at %s", dbPath)
+	} else {
+		backend := os.Getenv("STORE_BACKEND")
+		if backend == "" {
+			backend = "persistent"
+		}
+		switch backend {
+		case "memory":
+			store = bus.NewStore(cfg)
+		default:
+			statePath := os.Getenv("STATE_FILE")
+			if statePath == "" {
+				statePath = "./data/state.json"
+			}
+			ps, err := bus.NewPersistentStore(statePath, cfg)
+			if err != nil {
+				log.Fatalf("failed to initialize persistent store (%s): %v", statePath, err)
+			}
+			store = ps
+			log.Printf("using persistent store at %s", statePath)
+		}
 	}
 
 	h := httpapi.NewServer(store)
