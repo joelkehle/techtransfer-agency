@@ -67,6 +67,10 @@ func (b *Bridge) Submit(ctx context.Context, token, workflow, caseID string, att
 	}
 	bodyBlob, _ := json.Marshal(bodyMap)
 
+	// Register IDs before sending so the poll loop can match the response
+	// even if the pipeline replies before SendMessage returns.
+	b.store.SetWorkflowIDs(token, workflow, conversationID, requestID)
+
 	_, err = b.client.SendMessage(
 		ctx,
 		b.agentID,
@@ -82,8 +86,6 @@ func (b *Bridge) Submit(ctx context.Context, token, workflow, caseID string, att
 	if err != nil {
 		return fmt.Errorf("send message for %s: %w", workflow, err)
 	}
-
-	b.store.SetWorkflowIDs(token, workflow, conversationID, requestID)
 	return nil
 }
 

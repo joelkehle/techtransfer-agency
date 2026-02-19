@@ -41,6 +41,8 @@ services:
     command:
       - patent-pipeline
       - -bus-url=http://bus:8080
+    volumes:
+      - uploads:/uploads
     networks:
       - agentnet
     depends_on:
