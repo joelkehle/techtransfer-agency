@@ -175,169 +175,19 @@ func (t *Team) processInbox(ctx context.Context, agentID string) error {
 }
 
 func (t *Team) handleIntake(ctx context.Context, evt InboxEvent) error {
-	if err := t.client.Ack(ctx, "intake", t.secrets["intake"], evt.MessageID, "accepted", "validated"); err != nil {
-		return err
-	}
-	_ = t.client.Event(ctx, "intake", t.secrets["intake"], evt.MessageID, "progress", "validated inbound disclosure payload", map[string]any{"stage": "intake"})
-
-	if len(evt.Attachments) == 0 {
-		_ = t.client.Event(ctx, "intake", t.secrets["intake"], evt.MessageID, "error", "missing attachment", nil)
-		return errors.New("intake: missing attachment")
-	}
-
-	var payload map[string]any
-	_ = json.Unmarshal([]byte(evt.Body), &payload)
-	caseID, _ := payload["case_id"].(string)
-	forwardBody, _ := json.Marshal(map[string]any{
-		"case_id": caseID,
-		"task":    "extract text",
-	})
-
-	_, err := t.client.SendMessage(
-		ctx,
-		"intake",
-		t.secrets["intake"],
-		"pdf-extractor",
-		evt.ConversationID,
-		t.nextRequestID("extract"),
-		"request",
-		string(forwardBody),
-		evt.Attachments,
-		map[string]any{"stage": "extract"},
-	)
-	if err != nil {
-		_ = t.client.Event(ctx, "intake", t.secrets["intake"], evt.MessageID, "error", "failed to forward to extractor", nil)
-		return err
-	}
-
-	_ = t.client.Event(ctx, "intake", t.secrets["intake"], evt.MessageID, "final", "forwarded to pdf-extractor", map[string]any{"stage": "intake"})
-	return nil
+	return HandleIntakeMessage(ctx, t.client, "intake", t.secrets["intake"], evt, "pdf-extractor")
 }
 
 func (t *Team) handleExtractor(ctx context.Context, evt InboxEvent) error {
-	if err := t.client.Ack(ctx, "pdf-extractor", t.secrets["pdf-extractor"], evt.MessageID, "accepted", "extracting"); err != nil {
-		return err
-	}
-	_ = t.client.Event(ctx, "pdf-extractor", t.secrets["pdf-extractor"], evt.MessageID, "progress", "extracting PDF text", map[string]any{"stage": "extract"})
-
-	if len(evt.Attachments) == 0 {
-		_ = t.client.Event(ctx, "pdf-extractor", t.secrets["pdf-extractor"], evt.MessageID, "error", "missing attachment", nil)
-		return errors.New("extractor: missing attachment")
-	}
-	path, err := AttachmentFilePath(evt.Attachments[0])
-	if err != nil {
-		_ = t.client.Event(ctx, "pdf-extractor", t.secrets["pdf-extractor"], evt.MessageID, "error", err.Error(), nil)
-		return err
-	}
-
-	extracted, err := ExtractPDFText(ctx, path)
-	if err != nil {
-		_ = t.client.Event(ctx, "pdf-extractor", t.secrets["pdf-extractor"], evt.MessageID, "error", err.Error(), nil)
-		return err
-	}
-
-	var payload map[string]any
-	_ = json.Unmarshal([]byte(evt.Body), &payload)
-	caseID, _ := payload["case_id"].(string)
-	forwardBody, _ := json.Marshal(map[string]any{
-		"case_id":           caseID,
-		"task":              "patent eligibility",
-		"extracted_text":    extracted.Text,
-		"extraction_method": extracted.Method,
-		"truncated":         extracted.Truncated,
-	})
-
-	_, err = t.client.SendMessage(
-		ctx,
-		"pdf-extractor",
-		t.secrets["pdf-extractor"],
-		"patent-agent",
-		evt.ConversationID,
-		t.nextRequestID("patent"),
-		"request",
-		string(forwardBody),
-		nil,
-		map[string]any{"stage": "patent"},
-	)
-	if err != nil {
-		_ = t.client.Event(ctx, "pdf-extractor", t.secrets["pdf-extractor"], evt.MessageID, "error", "failed to forward to patent-agent", nil)
-		return err
-	}
-
-	_ = t.client.Event(ctx, "pdf-extractor", t.secrets["pdf-extractor"], evt.MessageID, "final", "extracted and forwarded to patent-agent", map[string]any{"method": extracted.Method})
-	return nil
+	return HandleExtractorMessage(ctx, t.client, "pdf-extractor", t.secrets["pdf-extractor"], evt, "patent-agent")
 }
 
 func (t *Team) handlePatentAgent(ctx context.Context, evt InboxEvent) error {
-	if err := t.client.Ack(ctx, "patent-agent", t.secrets["patent-agent"], evt.MessageID, "accepted", "analyzing"); err != nil {
-		return err
-	}
-	_ = t.client.Event(ctx, "patent-agent", t.secrets["patent-agent"], evt.MessageID, "progress", "running patent eligibility analysis", map[string]any{"stage": "analysis"})
-
-	var payload struct {
-		CaseID        string `json:"case_id"`
-		ExtractedText string `json:"extracted_text"`
-	}
-	if err := json.Unmarshal([]byte(evt.Body), &payload); err != nil {
-		_ = t.client.Event(ctx, "patent-agent", t.secrets["patent-agent"], evt.MessageID, "error", "invalid payload", nil)
-		return err
-	}
-
-	assessment := EvaluatePatentEligibility(payload.CaseID, payload.ExtractedText)
-	blob, _ := json.Marshal(assessment)
-
-	_, err := t.client.SendMessage(
-		ctx,
-		"patent-agent",
-		t.secrets["patent-agent"],
-		"reporter",
-		evt.ConversationID,
-		t.nextRequestID("report"),
-		"request",
-		string(blob),
-		nil,
-		map[string]any{"stage": "report"},
-	)
-	if err != nil {
-		_ = t.client.Event(ctx, "patent-agent", t.secrets["patent-agent"], evt.MessageID, "error", "failed to forward to reporter", nil)
-		return err
-	}
-
-	_ = t.client.Event(ctx, "patent-agent", t.secrets["patent-agent"], evt.MessageID, "final", "assessment completed", map[string]any{"eligibility": assessment.Eligibility})
-	return nil
+	return HandlePatentAgentMessage(ctx, t.client, "patent-agent", t.secrets["patent-agent"], evt, "reporter")
 }
 
 func (t *Team) handleReporter(ctx context.Context, evt InboxEvent) error {
-	if err := t.client.Ack(ctx, "reporter", t.secrets["reporter"], evt.MessageID, "accepted", "rendering"); err != nil {
-		return err
-	}
-
-	var assessment PatentAssessment
-	if err := json.Unmarshal([]byte(evt.Body), &assessment); err != nil {
-		_ = t.client.Event(ctx, "reporter", t.secrets["reporter"], evt.MessageID, "error", "invalid assessment payload", nil)
-		return err
-	}
-	finalReport := renderFinalReport(assessment)
-
-	_, err := t.client.SendMessage(
-		ctx,
-		"reporter",
-		t.secrets["reporter"],
-		"coordinator",
-		evt.ConversationID,
-		t.nextRequestID("final"),
-		"response",
-		finalReport,
-		nil,
-		map[string]any{"stage": "done"},
-	)
-	if err != nil {
-		_ = t.client.Event(ctx, "reporter", t.secrets["reporter"], evt.MessageID, "error", "failed to send final report", nil)
-		return err
-	}
-
-	_ = t.client.Event(ctx, "reporter", t.secrets["reporter"], evt.MessageID, "final", "report delivered", nil)
-	return nil
+	return HandleReporterMessageTo(ctx, t.client, "reporter", t.secrets["reporter"], evt, "coordinator")
 }
 
 func (t *Team) readCoordinatorResult(ctx context.Context) (string, PatentAssessment, bool, error) {
@@ -368,25 +218,3 @@ func extractAssessmentFromReport(report string) PatentAssessment {
 	return assessment
 }
 
-func renderFinalReport(a PatentAssessment) string {
-	blob, _ := json.MarshalIndent(a, "", "  ")
-	reasons := strings.Join(a.EligibilityReason, "\n- ")
-	questions := strings.Join(a.Questions, "\n- ")
-	if reasons == "" {
-		reasons = "(none)"
-	}
-	if questions == "" {
-		questions = "(none)"
-	}
-	return fmt.Sprintf(
-		"Patent Eligibility Screening\nCase: %s\nEligibility: %s\nConfidence: %.2f\n\nSummary:\n%s\n\nReasons:\n- %s\n\nQuestions for Inventors:\n- %s\n\nDisclaimer:\n%s\n\nRAW_JSON:\n%s",
-		a.CaseID,
-		a.Eligibility,
-		a.Confidence,
-		a.Summary,
-		reasons,
-		questions,
-		a.Disclaimer,
-		string(blob),
-	)
-}
