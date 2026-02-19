@@ -1,0 +1,7 @@
+.git
+.gitignore
+*.md
+LICENSE
+dummy-agent
+uploads/
+data/
