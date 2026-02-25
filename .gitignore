@@ -7,3 +7,5 @@ node_modules/
 bus.db
 bus.db-shm
 bus.db-wal
+package.json
+package-lock.json
