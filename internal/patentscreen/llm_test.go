@@ -18,3 +18,22 @@ func TestBackoffDelay(t *testing.T) {
 		t.Fatal("attempt 2 should be 2s")
 	}
 }
+
+func TestClassifyTransportErrorAvoidsBroadNumericMatch(t *testing.T) {
+	err := classifyTransportError(assertErr("failed after 5 retries while waiting 4 seconds"))
+	if err != failureServer {
+		t.Fatalf("expected default server classification, got %v", err)
+	}
+	err = classifyTransportError(assertErr("status code: 400 bad request"))
+	if err != failureClient {
+		t.Fatalf("expected client failure classification, got %v", err)
+	}
+	err = classifyTransportError(assertErr("status=500 upstream error"))
+	if err != failureServer {
+		t.Fatalf("expected server failure classification, got %v", err)
+	}
+}
+
+type assertErr string
+
+func (e assertErr) Error() string { return string(e) }

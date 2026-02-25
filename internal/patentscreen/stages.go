@@ -43,10 +43,17 @@ The three categories of judicial exceptions are:
       (MPEP § 2106.04(a)(2), Group III)
 
 2. LAWS OF NATURE — naturally occurring principles or relationships.
+   E.g., E=mc², the relationship between blood metabolite levels and drug
+   dosage (Mayo v. Prometheus).
+
 3. NATURAL PHENOMENA / PRODUCTS OF NATURE — naturally occurring things.
+   E.g., naturally isolated DNA sequences (Myriad), naturally occurring
+   minerals.
 
 Important: A claim that merely involves or is based on a judicial exception
-is different from a claim that recites a judicial exception.`
+is different from a claim that recites a judicial exception. Only claims that
+recite (set forth or describe) a judicial exception require further analysis.
+(MPEP § 2106.04)`
 
 const stage4PromptContext = `Under Step 2A, Prong Two (MPEP § 2106.04(d)), evaluate whether the claim
 as a whole integrates the judicial exception into a practical application.
@@ -56,34 +63,46 @@ the additional elements (beyond the exception itself) apply, rely on, or use
 the exception in a manner that imposes a meaningful limit on the exception.
 
 Considerations indicating integration (MPEP § 2106.04(d)(1)):
-- Improvement to the functioning of a computer or other technology (MPEP § 2106.05(a))
-- Application of the exception with a particular machine (MPEP § 2106.05(b))
-- Transformation of a particular article to a different state or thing (MPEP § 2106.05(c))
-- Application of the exception in some other meaningful way beyond generally linking use
-  to a particular technological environment (MPEP § 2106.05(e))
+- Improvement to the functioning of a computer or other technology
+  (MPEP § 2106.05(a))
+- Application of the exception with a particular machine
+  (MPEP § 2106.05(b))
+- Transformation of a particular article to a different state or thing
+  (MPEP § 2106.05(c))
+- Application of the exception in some other meaningful way beyond generally
+  linking the use to a particular technological environment
+  (MPEP § 2106.05(e))
 
-Considerations indicating NO integration:
-- Adding the words "apply it" with no meaningful limit (MPEP § 2106.05(f))
-- Adding insignificant extra-solution activity (MPEP § 2106.05(g))
-- Generally linking use to a particular technological environment (MPEP § 2106.05(h))`
+Considerations indicating NO integration (MPEP § 2106.04(d)(1)):
+- Adding the words "apply it" or equivalent with no meaningful limit
+  (MPEP § 2106.05(f))
+- Adding insignificant extra-solution activity (e.g., mere data gathering)
+  (MPEP § 2106.05(g))
+- Generally linking use to a particular technological environment or field
+  (MPEP § 2106.05(h))
+
+Evaluate the claim as a whole, not individual elements in isolation.`
 
 const stage5PromptContext = `Under Step 2B (MPEP § 2106.05), determine whether the additional elements,
 individually and in combination, provide an inventive concept — i.e., amount
 to significantly more than the judicial exception itself.
 
 Considerations indicating significantly more:
-- Adds a specific limitation beyond what is well-understood, routine, and conventional
-  in the field (MPEP § 2106.05(d))
-- Adds unconventional steps that confine the claim to a particular useful application
-  (MPEP § 2106.05(e))
+- Adds a specific limitation beyond what is well-understood, routine, and
+  conventional in the field (MPEP § 2106.05(d))
+- Adds unconventional steps that confine the claim to a particular useful
+  application (MPEP § 2106.05(e))
 
 Considerations indicating NOT significantly more:
-- Adding well-understood, routine, conventional activities previously known in the industry
-  (MPEP § 2106.05(d), Berkheimer Memo)
-- Appending well-known conventional steps at a high level of generality
+- Adding well-understood, routine, conventional activities previously known
+  in the industry (MPEP § 2106.05(d), Berkheimer Memo)
+- Simply appending well-known conventional steps specified at a high level
+  of generality
 
-Per the Berkheimer Memo (April 2018), well-understood/routine/conventional findings
-must be supported by evidence or clear justification.`
+Per the Berkheimer Memo (April 2018), a finding that additional elements are
+well-understood, routine, and conventional must be supported by evidence
+(citation to publications, patents, court decisions, or official notice with
+justification).`
 
 const stage1SchemaPrompt = `Required JSON schema:
 {

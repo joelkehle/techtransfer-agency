@@ -70,7 +70,6 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 	if err := a.client.Ack(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "accepted", "processing patent eligibility screen"); err != nil {
 		return err
 	}
-	_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "progress", "Stage 1: Extracting invention details...", map[string]any{"stage": "stage_1"})
 
 	var req RequestEnvelope
 	if err := json.Unmarshal([]byte(evt.Body), &req); err != nil {
@@ -78,9 +77,12 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 		return err
 	}
 
-	result, err := a.pipeline.Run(ctx, req)
+	result, err := a.pipeline.RunWithProgress(ctx, req, func(stage, message string) {
+		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "progress", message, map[string]any{"stage": stage})
+	})
 	if err != nil {
-		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "error", err.Error(), map[string]any{"stage": "pipeline"})
+		stage := StageNameFromError(err)
+		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "error", err.Error(), map[string]any{"stage": stage})
 		return err
 	}
 

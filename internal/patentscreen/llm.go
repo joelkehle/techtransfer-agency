@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 )
 
 const systemPrompt = "You are a patent examiner conducting a preliminary eligibility screen under 35 U.S.C. § 101, following the USPTO's MPEP § 2106 framework. Respond with strict JSON only."
+
+var statusCodeRe = regexp.MustCompile(`(?:status(?:\s+code)?[:=\s]+)(\d{3})`)
 
 type llmFailureClass int
 
@@ -162,12 +165,23 @@ func classifyTransportError(err error) llmFailureClass {
 	if errors.As(err, &ne) && ne.Timeout() {
 		return failureTimeout
 	}
+	m := statusCodeRe.FindStringSubmatch(msg)
+	if len(m) == 2 {
+		switch {
+		case strings.HasPrefix(m[1], "429"):
+			return failureRateLimit
+		case strings.HasPrefix(m[1], "5"):
+			return failureServer
+		case strings.HasPrefix(m[1], "4"):
+			return failureClient
+		}
+	}
 	switch {
-	case strings.Contains(msg, "429"):
+	case strings.Contains(msg, "status 429"), strings.Contains(msg, "status=429"), strings.Contains(msg, "rate limit"):
 		return failureRateLimit
-	case strings.Contains(msg, " 5") || strings.Contains(msg, "status code: 5") || strings.Contains(msg, "server error"):
+	case strings.Contains(msg, "status 5"), strings.Contains(msg, "status=5"), strings.Contains(msg, "status code: 5"), strings.Contains(msg, "server error"):
 		return failureServer
-	case strings.Contains(msg, " 4") || strings.Contains(msg, "status code: 4"):
+	case strings.Contains(msg, "status 4"), strings.Contains(msg, "status=4"), strings.Contains(msg, "status code: 4"):
 		return failureClient
 	default:
 		return failureServer
