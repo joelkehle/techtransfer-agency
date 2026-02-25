@@ -1,0 +1,1 @@
+A biotech method measures biomarker concentration and applies a novel microfluidic chamber configuration with a non-conventional reagent sequence to produce reproducible dosage predictions. The protocol specifies chamber geometry, temperature ranges, and reaction timing windows.

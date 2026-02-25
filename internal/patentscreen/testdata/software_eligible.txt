@@ -1,0 +1,1 @@
+A software system improves database query planning by introducing a deterministic cost model calibrated from runtime counters. The scheduler pins query fragments to execution lanes and dynamically adjusts only when counter deltas exceed threshold windows. The implementation includes concrete data structures, update equations, and a bounded convergence loop.

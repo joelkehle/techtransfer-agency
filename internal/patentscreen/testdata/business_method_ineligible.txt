@@ -1,0 +1,1 @@
+A business method ranks leads and assigns commissions according to organizational policy. Steps are collect data, apply scoring rules, and display ranked opportunities. The disclosure does not include any technical implementation details beyond generic computer use.

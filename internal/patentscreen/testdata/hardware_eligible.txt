@@ -1,0 +1,1 @@
+A hardware controller for electric drives uses a dual-loop feedback architecture with dedicated ASIC blocks for fault isolation. The controller transforms raw current sensor input into stabilized motor state via fixed-cycle signal processing and hardware interrupt coordination.
