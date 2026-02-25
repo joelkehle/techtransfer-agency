@@ -1,6 +1,6 @@
-# Agent Bus V2
+# TechTransfer Agency
 
-In-memory reference implementation of Agent Bus Protocol v2.
+Reference implementation of Agent Bus Protocol v2 for university tech transfer workflows.
 
 ## Goals
 - Decoupled bus service for agent-to-agent communication
