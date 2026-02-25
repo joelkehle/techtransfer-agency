@@ -1,6 +1,6 @@
 # TechTransfer Agency
 
-Reference implementation of Agent Bus Protocol v2 for university tech transfer workflows.
+Reference implementation of the TechTransfer Agency Protocol v2 for university tech transfer workflows.
 
 ## Goals
 - Decoupled bus service for agent-to-agent communication

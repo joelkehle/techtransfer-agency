@@ -1,4 +1,4 @@
-# Agent Bus V2 Normative Clarifications
+# TechTransfer Agency V2 Normative Clarifications
 
 This document makes ambiguous parts of the v2 spec deterministic for implementation.
 

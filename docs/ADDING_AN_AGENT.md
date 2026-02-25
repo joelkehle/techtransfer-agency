@@ -1,6 +1,6 @@
 # Adding a New Agent to the Bus
 
-This guide walks through adding a new agent that communicates over the Agent Bus. An agent is any process that registers with the bus, receives messages, does work, and optionally sends messages to other agents.
+This guide walks through adding a new agent that communicates over the TechTransfer Agency Bus. An agent is any process that registers with the bus, receives messages, does work, and optionally sends messages to other agents.
 
 ## Prerequisites
 

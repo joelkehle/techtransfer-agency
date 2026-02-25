@@ -1,11 +1,11 @@
-# Agent Bus Protocol Specification v2
+# TechTransfer Agency Protocol Specification v2
 
 > Refactored from v1 by Claude (Opus 4.6), 2026-02-08.
 > Original v1 by Claude (Opus 4.5) and Codex, facilitated by Joel Kehle, 2026-01-22.
 
 ## Overview
 
-The Agent Bus is an agent-first communication protocol. Agents communicate via
+The TechTransfer Agency Bus is an agent-first communication protocol. Agents communicate via
 HTTP. Humans and external systems observe via a streaming observation API.
 The bus is transport-agnostic — any client that speaks HTTP and SSE can
 consume the observation stream.
@@ -28,7 +28,7 @@ consume the observation stream.
 
 ```
                     ┌──────────────────────┐
-                    │      Agent Bus       │
+                    │ TechTransfer Agency  │
                     │                      │
                     │  ┌────────────────┐  │
                     │  │    Registry    │  │
