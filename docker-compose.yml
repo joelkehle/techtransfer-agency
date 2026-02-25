@@ -37,11 +37,31 @@ services:
       bus:
         condition: service_healthy
 
-  patent-pipeline:
+  patent-extractor:
     build: .
     command:
-      - patent-pipeline
+      - patent-extractor
       - -bus-url=http://bus:8080
+      - -next-agent-id=patent-screen
+    environment:
+      PATENT_EXTRACTOR_AGENT_SECRET: ${PATENT_EXTRACTOR_AGENT_SECRET:?PATENT_EXTRACTOR_AGENT_SECRET is required}
+    volumes:
+      - uploads:/uploads
+    networks:
+      - agentnet
+    depends_on:
+      bus:
+        condition: service_healthy
+
+  patent-screen:
+    build: .
+    command:
+      - patent-screen
+      - -bus-url=http://bus:8080
+      - -agent-id=patent-screen
+    environment:
+      PATENT_SCREEN_AGENT_SECRET: ${PATENT_SCREEN_AGENT_SECRET:?PATENT_SCREEN_AGENT_SECRET is required}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
     volumes:
       - uploads:/uploads
     networks:

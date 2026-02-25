@@ -32,7 +32,7 @@ go run ./cmd/techtransfer-agency
 
 Server listens on `:8080` (or `PORT`).
 
-For components that authenticate to the bus (`operator`, `patent-pipeline`, `patent-team`, `patent-screen`), required secrets are loaded from environment variables with no defaults. See `.env.example` for the full variable list.
+For components that authenticate to the bus (`operator`, `patent-extractor`, `patent-screen`, `patent-pipeline`, `patent-team`), required secrets are loaded from environment variables with no defaults. See `.env.example` for the full variable list.
 
 ### Patent Team Demo (End-to-End Use Case)
 
@@ -61,6 +61,13 @@ Run the standalone patent eligibility screen agent:
 export PATENT_SCREEN_AGENT_SECRET=replace-with-strong-secret
 export ANTHROPIC_API_KEY=replace-with-api-key
 go run ./cmd/patent-screen --bus-url http://localhost:8080 --agent-id patent-screen
+```
+
+For operator-driven submissions (`workflow=patent-screen`) with PDF attachments, run the extractor agent too:
+
+```bash
+export PATENT_EXTRACTOR_AGENT_SECRET=replace-with-strong-secret
+go run ./cmd/patent-extractor --bus-url http://localhost:8080 --agent-id patent-extractor --next-agent-id patent-screen
 ```
 
 Details: `docs/PATENT_ELIGIBILITY_SCREEN_SPEC.md`

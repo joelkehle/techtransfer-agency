@@ -71,8 +71,8 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 		return err
 	}
 
-	var req RequestEnvelope
-	if err := json.Unmarshal([]byte(evt.Body), &req); err != nil {
+	req, err := parseRequestEnvelope(evt.Body)
+	if err != nil {
 		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "error", "invalid request envelope", nil)
 		return err
 	}
@@ -123,4 +123,32 @@ func replyToFromMeta(meta any) string {
 	}
 	rt, _ := m["reply_to"].(string)
 	return strings.TrimSpace(rt)
+}
+
+func parseRequestEnvelope(body string) (RequestEnvelope, error) {
+	var req RequestEnvelope
+	if err := json.Unmarshal([]byte(body), &req); err == nil && strings.TrimSpace(req.DisclosureText) != "" {
+		return req, nil
+	}
+
+	var legacy struct {
+		CaseID           string `json:"case_id"`
+		ExtractedText    string `json:"extracted_text"`
+		ExtractionMethod string `json:"extraction_method"`
+		Truncated        bool   `json:"truncated"`
+	}
+	if err := json.Unmarshal([]byte(body), &legacy); err != nil {
+		return RequestEnvelope{}, err
+	}
+	if strings.TrimSpace(legacy.ExtractedText) == "" {
+		return RequestEnvelope{}, fmt.Errorf("missing disclosure_text or extracted_text")
+	}
+	return RequestEnvelope{
+		CaseID:         legacy.CaseID,
+		DisclosureText: legacy.ExtractedText,
+		Metadata: RequestMetadata{
+			ExtractionMethod: legacy.ExtractionMethod,
+			Truncated:        legacy.Truncated,
+		},
+	}, nil
 }
