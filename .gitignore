@@ -2,3 +2,8 @@ cover.out
 /dummy-agent
 uploads/
 data/state.json
+.claude/
+node_modules/
+bus.db
+bus.db-shm
+bus.db-wal
