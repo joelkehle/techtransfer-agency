@@ -1,1 +1,3 @@
-READ ~/Projects/agent-scripts/AGENTS.MD BEFORE ANYTHING (skip if missing).
+Public repository note: local/private agent instructions are intentionally not included here.
+
+For contributor guidance, see `CONTRIBUTING.md`.
