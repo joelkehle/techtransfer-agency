@@ -32,11 +32,18 @@ go run ./cmd/techtransfer-agency
 
 Server listens on `:8080` (or `PORT`).
 
+For components that authenticate to the bus (`operator`, `patent-pipeline`, `patent-team`), required secrets are loaded from environment variables with no defaults. See `.env.example` for the full variable list.
+
 ### Patent Team Demo (End-to-End Use Case)
 
 Run a concrete multi-agent workflow for PDF invention screening:
 
 ```bash
+export PATENT_TEAM_COORDINATOR_SECRET=replace-with-strong-secret
+export PATENT_TEAM_INTAKE_SECRET=replace-with-strong-secret
+export PATENT_TEAM_EXTRACTOR_SECRET=replace-with-strong-secret
+export PATENT_TEAM_PATENT_AGENT_SECRET=replace-with-strong-secret
+export PATENT_TEAM_REPORTER_SECRET=replace-with-strong-secret
 go run ./cmd/patent-team --pdf /absolute/path/to/disclosure.pdf --case-id CASE-2026-001
 ```
 
@@ -81,3 +88,13 @@ make gate
 ## Spec
 - `docs/PROTOCOL_SPEC_v2.md`
 - `docs/NORMATIVE_CLARIFICATIONS.md`
+
+## License
+
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+You may view, use, and modify the source for any noncommercial purpose. This includes personal use, research, education, and use by charitable organizations, educational institutions, and government institutions.
+
+Commercial use requires a separate license. Contact joel@techtransfer.agency for commercial licensing inquiries.
+
+Agents that connect to the bus operate under their own licenses but must be open source or source-available per the store terms.

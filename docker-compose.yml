@@ -18,10 +18,10 @@ services:
       retries: 5
       start_period: 5s
 
-  concierge:
+  operator:
     build: .
     command:
-      - concierge
+      - operator
       - -bus-url=http://bus:8080
       - -addr=:8090
       - -web-dir=/app/web

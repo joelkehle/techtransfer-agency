@@ -18,8 +18,8 @@ import (
 
 	"github.com/joelkehle/techtransfer-agency/internal/bus"
 	"github.com/joelkehle/techtransfer-agency/internal/busclient"
-	"github.com/joelkehle/techtransfer-agency/internal/concierge"
 	"github.com/joelkehle/techtransfer-agency/internal/httpapi"
+	"github.com/joelkehle/techtransfer-agency/internal/operator"
 )
 
 // minimalPDF returns a valid PDF that contains some text.
@@ -104,12 +104,12 @@ func TestE2EPatentScreening(t *testing.T) {
 	busURL := "http://" + busLn.Addr().String()
 	t.Logf("bus running at %s", busURL)
 
-	// --- 2. Start concierge bridge in-process ---
-	conciergeStore := concierge.NewSubmissionStore()
-	bridge := concierge.NewBridge(busURL, "concierge", "secret-concierge", conciergeStore)
+	// --- 2. Start operator bridge in-process ---
+	operatorStore := operator.NewSubmissionStore()
+	bridge := operator.NewBridge(busURL, "operator", "secret-operator", operatorStore)
 
 	if err := bridge.Register(ctx); err != nil {
-		t.Fatalf("register concierge: %v", err)
+		t.Fatalf("register operator: %v", err)
 	}
 	pollCtx, pollCancel := context.WithCancel(ctx)
 	defer pollCancel()
@@ -119,17 +119,17 @@ func TestE2EPatentScreening(t *testing.T) {
 	uploadDir := t.TempDir()
 	webDir := t.TempDir()
 
-	conciergeLn, err := net.Listen("tcp", "127.0.0.1:0")
+	operatorLn, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("listen concierge: %v", err)
+		t.Fatalf("listen operator: %v", err)
 	}
-	conciergeHandler := concierge.NewServer(bridge, conciergeStore, webDir, uploadDir)
-	conciergeSrv := &http.Server{Handler: conciergeHandler}
-	go conciergeSrv.Serve(conciergeLn)
-	defer conciergeSrv.Close()
+	operatorHandler := operator.NewServer(bridge, operatorStore, webDir, uploadDir)
+	operatorSrv := &http.Server{Handler: operatorHandler}
+	go operatorSrv.Serve(operatorLn)
+	defer operatorSrv.Close()
 
-	conciergeURL := "http://" + conciergeLn.Addr().String()
-	t.Logf("concierge running at %s", conciergeURL)
+	operatorURL := "http://" + operatorLn.Addr().String()
+	t.Logf("operator running at %s", operatorURL)
 
 	// --- 3. Register a dummy agent with "patent-screen" capability ---
 	dummyAgentID := "dummy-patent-screener"
@@ -162,7 +162,7 @@ func TestE2EPatentScreening(t *testing.T) {
 	}
 	writer.Close()
 
-	resp, err := http.Post(conciergeURL+"/submit", writer.FormDataContentType(), &body)
+	resp, err := http.Post(operatorURL+"/submit", writer.FormDataContentType(), &body)
 	if err != nil {
 		t.Fatalf("POST /submit: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestE2EPatentScreening(t *testing.T) {
 
 	// --- 3b. Run dummy agent: poll inbox, ack, respond with canned report ---
 	// The dummy agent acts as a simple request-response agent. It polls for the
-	// request from concierge, acknowledges it, and sends back a canned response.
+	// request from operator, acknowledges it, and sends back a canned response.
 	cannedReport := "Patent Eligibility Screening\nCase: TEST-001\nEligibility: likely_eligible\nConfidence: 0.85\n\nSummary:\nTest patent disclosure appears eligible.\n\nReasons:\n- Contains technical implementation details\n\nDisclaimer:\nAutomated screening only."
 
 	dummyDone := make(chan error, 1)
@@ -216,7 +216,7 @@ func TestE2EPatentScreening(t *testing.T) {
 					dummyDone <- fmt.Errorf("dummy event: %w", err)
 					return
 				}
-				// Send response back to concierge.
+				// Send response back to operator.
 				_, err := dummyClient.SendMessage(
 					ctx,
 					dummyAgentID,
@@ -261,10 +261,10 @@ func TestE2EPatentScreening(t *testing.T) {
 
 	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
-		// Give the concierge poll loop time to pick up the response.
+		// Give the operator poll loop time to pick up the response.
 		time.Sleep(500 * time.Millisecond)
 
-		resp, err := http.Get(conciergeURL + "/status/" + token)
+		resp, err := http.Get(operatorURL + "/status/" + token)
 		if err != nil {
 			t.Fatalf("GET /status: %v", err)
 		}
@@ -291,7 +291,7 @@ func TestE2EPatentScreening(t *testing.T) {
 	}
 
 	// --- 7. GET /report/{token}/patent-screen ---
-	resp, err = http.Get(conciergeURL + "/report/" + token + "/patent-screen")
+	resp, err = http.Get(operatorURL + "/report/" + token + "/patent-screen")
 	if err != nil {
 		t.Fatalf("GET /report: %v", err)
 	}

@@ -118,7 +118,7 @@ curl -X POST http://bus:8080/v1/events \
 
       <h3 class="code-heading">5. Send your report back</h3>
       <pre class="code-block"><code>BODY='{
-  "to": "concierge",
+  "to": "operator",
   "from": "my-prior-art-agent",
   "conversation_id": "conv-001",
   "request_id": "resp-001",
@@ -141,7 +141,7 @@ curl -X POST http://bus:8080/v1/messages \
       <pre class="code-block"><code>{
   "message_id": "msg-abc123",
   "type": "request",
-  "from": "concierge",
+  "from": "operator",
   "conversation_id": "submission-tok-prior-art-search",
   "body": "{\"task\": \"prior-art-search\", \"case_id\": \"CASE-2026-042\"}",
   "attachments": [

@@ -1,6 +1,6 @@
 // dummy-agent registers on the bus with a configurable capability,
 // accepts any request, and replies with a canned report. Useful for
-// testing the concierge end-to-end without real specialist agents.
+// testing the operator end-to-end without real specialist agents.
 package main
 
 import (
@@ -119,7 +119,7 @@ Request: %s
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Summary:
-This is a dummy report generated for testing the concierge submission
+This is a dummy report generated for testing the operator submission
 workflow. In production, this would be replaced by a real specialist
 agent performing actual %s analysis.
 
