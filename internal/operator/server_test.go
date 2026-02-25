@@ -169,6 +169,44 @@ func TestHandleSubmitNoFile(t *testing.T) {
 	}
 }
 
+func TestHandleSubmitGeneratesCaseIDWhenMissing(t *testing.T) {
+	handler, store, _ := setupServer(t)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("workflows", "patent-screen")
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/submit", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	token, ok := resp["token"].(string)
+	if !ok || token == "" {
+		t.Fatal("expected non-empty token in response")
+	}
+
+	sub := store.Get(token)
+	if sub == nil {
+		t.Fatal("expected submission to be in store")
+	}
+	if sub.CaseID == "" {
+		t.Fatal("expected generated case_id when missing")
+	}
+	if got, wantPrefix := sub.CaseID, "SUB-"; len(got) <= len(wantPrefix) || got[:len(wantPrefix)] != wantPrefix {
+		t.Fatalf("expected generated case_id prefix %q, got %q", wantPrefix, got)
+	}
+}
+
 func TestHandleStatusValid(t *testing.T) {
 	handler, store, _ := setupServer(t)
 	sub := store.Create("case-status", []string{"patent-screen", "prior-art"})

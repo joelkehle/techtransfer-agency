@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/joelkehle/techtransfer-agency/internal/busclient"
 )
@@ -142,7 +143,10 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		workflows[i] = strings.TrimSpace(workflows[i])
 	}
 
-	caseID := r.FormValue("case_id")
+	caseID := strings.TrimSpace(r.FormValue("case_id"))
+	if caseID == "" {
+		caseID = fmt.Sprintf("SUB-%d", time.Now().UTC().UnixNano())
+	}
 
 	// Handle file upload.
 	var attachments []busclient.Attachment
