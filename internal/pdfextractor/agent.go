@@ -2,7 +2,9 @@ package pdfextractor
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/joelkehle/techtransfer-agency/internal/patentteam"
@@ -72,5 +74,41 @@ func (a *Agent) register(ctx context.Context) error {
 }
 
 func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
-	return patentteam.HandleExtractorMessage(ctx, a.client, a.cfg.AgentID, a.cfg.Secret, evt, a.cfg.NextAgentID)
+	if err := patentteam.HandleExtractorMessage(ctx, a.client, a.cfg.AgentID, a.cfg.Secret, evt, a.cfg.NextAgentID); err != nil {
+		_ = a.sendError(ctx, evt, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (a *Agent) sendError(ctx context.Context, evt InboxEvent, message string) error {
+	replyTo := evt.From
+	if rt := replyToFromMeta(evt.Meta); rt != "" {
+		replyTo = rt
+	}
+	_, err := a.client.SendMessage(
+		ctx,
+		a.cfg.AgentID,
+		a.cfg.Secret,
+		replyTo,
+		evt.ConversationID,
+		fmt.Sprintf("patent-extractor-error-%s", evt.MessageID),
+		"response",
+		message,
+		nil,
+		map[string]any{"stage": "extract", "status": "error"},
+	)
+	return err
+}
+
+func replyToFromMeta(meta any) string {
+	if meta == nil {
+		return ""
+	}
+	m, ok := meta.(map[string]any)
+	if !ok {
+		return ""
+	}
+	rt, _ := m["reply_to"].(string)
+	return strings.TrimSpace(rt)
 }

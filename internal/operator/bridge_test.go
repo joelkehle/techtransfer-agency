@@ -208,6 +208,50 @@ func TestPollMatchesErrorToSubmission(t *testing.T) {
 	}
 }
 
+func TestPollMatchesErrorResponseToSubmission(t *testing.T) {
+	store := NewSubmissionStore()
+	sub := store.Create("case-poll-err-resp", []string{"patent-screen"})
+	store.SetWorkflowIDs(sub.Token, "patent-screen", "conv-poll-err-resp", "req-poll-err-resp")
+
+	bus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/inbox":
+			json.NewEncoder(w).Encode(map[string]any{
+				"events": []map[string]any{
+					{
+						"message_id":      "msg-err-resp-1",
+						"type":            "response",
+						"from":            "patent-screen",
+						"conversation_id": "conv-poll-err-resp",
+						"body":            "disclosure text is insufficient for analysis",
+						"meta": map[string]any{
+							"status": "error",
+						},
+					},
+				},
+				"cursor": "1",
+			})
+		case "/v1/acks":
+			json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer bus.Close()
+
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	bridge.poll(context.Background())
+
+	ws := sub.Workflows["patent-screen"]
+	if ws.Status != StatusError {
+		t.Fatalf("expected status error after poll, got %s", ws.Status)
+	}
+	if ws.Report != "disclosure text is insufficient for analysis" {
+		t.Fatalf("expected error body to be stored, got %q", ws.Report)
+	}
+}
+
 func TestPollCursorAdvances(t *testing.T) {
 	store := NewSubmissionStore()
 

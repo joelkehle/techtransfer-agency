@@ -74,6 +74,7 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 	req, err := parseRequestEnvelope(evt.Body)
 	if err != nil {
 		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "error", "invalid request envelope", nil)
+		_ = a.sendError(ctx, evt, "invalid request envelope")
 		return err
 	}
 
@@ -83,6 +84,7 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 	if err != nil {
 		stage := StageNameFromError(err)
 		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "error", err.Error(), map[string]any{"stage": stage})
+		_ = a.sendError(ctx, evt, err.Error())
 		return err
 	}
 
@@ -106,11 +108,32 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 	)
 	if err != nil {
 		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "error", "failed to send response", nil)
+		_ = a.sendError(ctx, evt, "failed to send response")
 		return err
 	}
 
 	_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "final", string(result.FinalDetermination), map[string]any{"pathway": result.Pathway})
 	return nil
+}
+
+func (a *Agent) sendError(ctx context.Context, evt InboxEvent, message string) error {
+	replyTo := evt.From
+	if rt := replyToFromMeta(evt.Meta); rt != "" {
+		replyTo = rt
+	}
+	_, err := a.client.SendMessage(
+		ctx,
+		a.cfg.AgentID,
+		a.cfg.Secret,
+		replyTo,
+		evt.ConversationID,
+		fmt.Sprintf("patent-screen-error-%s", evt.MessageID),
+		"response",
+		message,
+		nil,
+		map[string]any{"stage": "error", "status": "error"},
+	)
+	return err
 }
 
 func replyToFromMeta(meta any) string {

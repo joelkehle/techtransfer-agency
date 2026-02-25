@@ -39,7 +39,7 @@ func (b *Bridge) Register(ctx context.Context) error {
 
 func (b *Bridge) nextRequestID(prefix string) string {
 	n := atomic.AddInt64(&b.seq, 1)
-	return fmt.Sprintf("%s-%s-%d", b.agentID, prefix, n)
+	return fmt.Sprintf("%s-%s-%d-%d", b.agentID, prefix, time.Now().UTC().UnixNano(), n)
 }
 
 // DiscoverWorkflows queries the bus for all registered agents and returns them.
@@ -116,6 +116,12 @@ func (b *Bridge) poll(ctx context.Context) {
 	for _, evt := range events {
 		switch evt.Type {
 		case "response":
+			if isErrorResponse(evt.Meta) {
+				if !b.store.ErrorWorkflow(evt.ConversationID, evt.Body) {
+					log.Printf("operator: unmatched error response for conversation %s", evt.ConversationID)
+				}
+				break
+			}
 			if !b.store.CompleteWorkflow(evt.ConversationID, evt.Body) {
 				log.Printf("operator: unmatched response for conversation %s", evt.ConversationID)
 			}
@@ -127,6 +133,18 @@ func (b *Bridge) poll(ctx context.Context) {
 		// Ack all messages.
 		_ = b.client.Ack(ctx, b.agentID, b.secret, evt.MessageID, "accepted", "")
 	}
+}
+
+func isErrorResponse(meta any) bool {
+	if meta == nil {
+		return false
+	}
+	m, ok := meta.(map[string]any)
+	if !ok {
+		return false
+	}
+	status, _ := m["status"].(string)
+	return status == "error"
 }
 
 // Heartbeat re-registers the agent periodically to keep it alive.
