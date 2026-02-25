@@ -55,6 +55,13 @@ func main() {
 		PDFPath:        *pdfPath,
 		Timeout:        *timeout,
 		ConversationID: *conversation,
+		Secrets: map[string]string{
+			"coordinator":   requiredEnv("PATENT_TEAM_COORDINATOR_SECRET"),
+			"intake":        requiredEnv("PATENT_TEAM_INTAKE_SECRET"),
+			"pdf-extractor": requiredEnv("PATENT_TEAM_EXTRACTOR_SECRET"),
+			"patent-agent":  requiredEnv("PATENT_TEAM_PATENT_AGENT_SECRET"),
+			"reporter":      requiredEnv("PATENT_TEAM_REPORTER_SECRET"),
+		},
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
@@ -66,6 +73,14 @@ func main() {
 	}
 
 	fmt.Printf("conversation_id=%s\n\n%s\n", result.ConversationID, result.FinalReport)
+}
+
+func requiredEnv(key string) string {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		log.Fatalf("missing required env var %s", key)
+	}
+	return v
 }
 
 func startLocalBus() (string, func(context.Context) error, error) {

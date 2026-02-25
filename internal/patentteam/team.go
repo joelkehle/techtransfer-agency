@@ -17,6 +17,7 @@ type TeamConfig struct {
 	PDFPath        string
 	Timeout        time.Duration
 	ConversationID string
+	Secrets        map[string]string
 }
 
 type TeamResult struct {
@@ -34,16 +35,14 @@ type Team struct {
 }
 
 func NewTeam(cfg TeamConfig) *Team {
+	secrets := cfg.Secrets
+	if secrets == nil {
+		secrets = map[string]string{}
+	}
 	return &Team{
-		cfg:    cfg,
-		client: NewClient(cfg.BusURL),
-		secrets: map[string]string{
-			"coordinator":   "secret-coordinator",
-			"intake":        "secret-intake",
-			"pdf-extractor": "secret-pdf-extractor",
-			"patent-agent":  "secret-patent-agent",
-			"reporter":      "secret-reporter",
-		},
+		cfg:     cfg,
+		client:  NewClient(cfg.BusURL),
+		secrets: secrets,
 		cursors: map[string]int{},
 	}
 }
@@ -217,4 +216,3 @@ func extractAssessmentFromReport(report string) PatentAssessment {
 	_ = json.Unmarshal([]byte(raw), &assessment)
 	return assessment
 }
-
