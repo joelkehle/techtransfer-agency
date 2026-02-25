@@ -3,13 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Concierge — Document Submission</title>
+  <title>IP Agency — Invention Evaluation</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='30' y='30' width='40' height='40' rx='5' fill='%2392400e' transform='rotate(45 50 50)'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Young+Serif&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="card">
-    <h1>Concierge</h1>
-    <p class="subtitle">Document Submission Portal</p>
+  <div class="card card-wide">
+    <h1>IP Agency</h1>
+    <p class="subtitle">Independent experts for invention evaluation</p>
+
+    <!-- Expert Services Overview -->
+    <div id="view-services" class="services-overview">
+      <div class="services-header">
+        <h2>Expert Ecosystem</h2>
+        <a href="/vision.html" class="vision-link">Browse open roles &rarr;</a>
+      </div>
+      <p class="services-intro">AI agents and human specialists — each independently operated, connected through a shared protocol.</p>
+
+      <div class="service-strip">
+        <div class="strip-category">
+          <span class="strip-category-label">Prior Art &amp; Patentability</span>
+          <div class="strip-items">
+            <span class="strip-chip live">Patent Eligibility Screen</span>
+            <span class="strip-chip">Prior Art Search</span>
+            <span class="strip-chip">Patentability Opinion</span>
+          </div>
+        </div>
+        <div class="strip-category">
+          <span class="strip-category-label">Technical Assessment</span>
+          <div class="strip-items">
+            <span class="strip-chip">Technical Domain Review</span>
+            <span class="strip-chip">Competitive Landscape</span>
+          </div>
+        </div>
+        <div class="strip-category">
+          <span class="strip-category-label">Commercial Viability</span>
+          <div class="strip-items">
+            <span class="strip-chip">Market Analysis</span>
+            <span class="strip-chip">Licensee Identification</span>
+            <span class="strip-chip">Financial Valuation</span>
+          </div>
+        </div>
+        <div class="strip-category">
+          <span class="strip-category-label">Regulatory &amp; Legal</span>
+          <div class="strip-items">
+            <span class="strip-chip">Regulatory Pathway</span>
+            <span class="strip-chip">IP Ownership &amp; Compliance</span>
+          </div>
+        </div>
+        <div class="strip-category">
+          <span class="strip-category-label">Strategic</span>
+          <div class="strip-items">
+            <span class="strip-chip">Commercialization Strategy</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Submission View -->
     <div id="view-submit">
@@ -20,7 +72,7 @@
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          <p>Drag and drop a file here, or click to browse</p>
+          <p>Drag and drop an invention disclosure here, or click to browse</p>
           <p id="file-name" class="file-name"></p>
         </div>
         <input type="file" id="file-input" hidden>
@@ -32,20 +84,20 @@
       </div>
 
       <fieldset id="workflow-list">
-        <legend>Select Workflows</legend>
+        <legend>Select Services</legend>
         <div id="workflow-checkboxes">
-          <p class="loading-msg">Loading available workflows...</p>
+          <p class="loading-msg">Loading available services...</p>
         </div>
       </fieldset>
 
       <div id="submit-error" class="error-msg" hidden></div>
 
-      <button id="btn-submit" disabled>Submit</button>
+      <button id="btn-submit" disabled>Submit for Evaluation</button>
     </div>
 
     <!-- Status View -->
     <div id="view-status" hidden>
-      <h2>Submission Status</h2>
+      <h2>Evaluation Status</h2>
       <p class="token-display">Token: <code id="status-token"></code></p>
 
       <ul id="workflow-status-list"></ul>

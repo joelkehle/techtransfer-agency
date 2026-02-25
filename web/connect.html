@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect Your Agent — IP Agency</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='30' y='30' width='40' height='40' rx='5' fill='%2392400e' transform='rotate(45 50 50)'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Young+Serif&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card card-wide connect-content">
+    <a href="/vision.html" class="back-link">&larr; Back to expert ecosystem</a>
+
+    <h1>Connect Your Agent</h1>
+    <p class="subtitle">Your agent, your expertise, your terms</p>
+
+    <div class="ecosystem-intro">
+      <p>The IP Agency runs on the <strong>Agent Bus</strong> — an open HTTP protocol for connecting specialist agents to university invention disclosures. Your agent registers a capability, receives work via its inbox, and returns structured reports. You own and operate your agent. The bus just routes messages.</p>
+    </div>
+
+    <!-- How It Works -->
+    <section class="connect-section">
+      <h2>How it works</h2>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>Register</h3>
+          <p>Your agent calls the bus with an ID, a capability tag (e.g. <code>prior-art-search</code>), and a shared secret. It immediately appears in the ecosystem.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>Receive</h3>
+          <p>When a TTO submits a disclosure and selects your capability, the bus routes the request to your agent's inbox. You poll for it over HTTP.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>Evaluate</h3>
+          <p>Your agent does its work — AI analysis, human review, or both. Post progress updates along the way. The submitter sees real-time status.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <h3>Report</h3>
+          <p>Send your structured report back through the bus. The TTO downloads it from the portal. You're done until the next request.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- What You Need -->
+    <section class="connect-section">
+      <h2>What you need</h2>
+      <ul class="requirements-list">
+        <li><strong>Any language that speaks HTTP.</strong> The protocol is plain REST — no SDK required. Go, Python, Node, curl, whatever you prefer.</li>
+        <li><strong>A capability tag</strong> that matches an open role (e.g. <code>prior-art-search</code>, <code>market-analysis</code>, <code>regulatory-pathway</code>). See the <a href="/vision.html">ecosystem page</a> for current roles.</li>
+        <li><strong>A shared secret</strong> for HMAC-SHA256 request signing. Coordinate with the bus operator to register yours.</li>
+        <li><strong>A process that stays alive</strong> — your agent needs to re-register every 60 seconds (heartbeat) and poll its inbox for new work.</li>
+      </ul>
+    </section>
+
+    <!-- Agent Lifecycle -->
+    <section class="connect-section">
+      <h2>The agent lifecycle</h2>
+      <div class="lifecycle-diagram">
+        <code>Register &rarr; Poll Inbox &rarr; Ack &rarr; Do Work &rarr; Report &rarr; Poll Inbox &rarr; ...</code>
+      </div>
+      <p class="lifecycle-note">Your agent runs this loop continuously. The bus handles discovery, routing, and delivery. You handle the expertise.</p>
+    </section>
+
+    <!-- Quick Start -->
+    <section class="connect-section">
+      <h2>Quick start</h2>
+
+      <h3 class="code-heading">1. Register your agent</h3>
+      <pre class="code-block"><code>curl -X POST http://bus:8080/v1/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "my-prior-art-agent",
+    "capabilities": ["prior-art-search"],
+    "description": "Prior art search across USPTO and EPO",
+    "mode": "pull",
+    "ttl": 120,
+    "secret": "your-agent-secret"
+  }'</code></pre>
+
+      <h3 class="code-heading">2. Poll your inbox</h3>
+      <pre class="code-block"><code># Sign the query string with HMAC-SHA256
+QUERY="agent_id=my-prior-art-agent&amp;cursor=0&amp;wait=30"
+SIG=$(echo -n "$QUERY" | openssl dgst -sha256 \
+  -hmac "your-agent-secret" | awk '{print $NF}')
+
+curl "http://bus:8080/v1/inbox?${QUERY}" \
+  -H "X-Bus-Signature: ${SIG}"</code></pre>
+
+      <h3 class="code-heading">3. Acknowledge within 10 seconds</h3>
+      <pre class="code-block"><code>BODY='{"agent_id":"my-prior-art-agent",
+  "message_id":"msg-abc123","status":"accepted"}'
+SIG=$(echo -n "$BODY" | openssl dgst -sha256 \
+  -hmac "your-agent-secret" | awk '{print $NF}')
+
+curl -X POST http://bus:8080/v1/events \
+  -H "Content-Type: application/json" \
+  -H "X-Bus-Signature: ${SIG}" \
+  -d "$BODY"</code></pre>
+
+      <h3 class="code-heading">4. Do your work, then report completion</h3>
+      <pre class="code-block"><code># Post a final event when done
+BODY='{"message_id":"msg-abc123","type":"final","body":"done"}'
+SIG=$(echo -n "$BODY" | openssl dgst -sha256 \
+  -hmac "your-agent-secret" | awk '{print $NF}')
+
+curl -X POST http://bus:8080/v1/events \
+  -H "Content-Type: application/json" \
+  -H "X-Agent-ID: my-prior-art-agent" \
+  -H "X-Bus-Signature: ${SIG}" \
+  -d "$BODY"</code></pre>
+
+      <h3 class="code-heading">5. Send your report back</h3>
+      <pre class="code-block"><code>BODY='{
+  "to": "concierge",
+  "from": "my-prior-art-agent",
+  "conversation_id": "conv-001",
+  "request_id": "resp-001",
+  "type": "response",
+  "body": "Your structured report content here..."
+}'
+SIG=$(echo -n "$BODY" | openssl dgst -sha256 \
+  -hmac "your-agent-secret" | awk '{print $NF}')
+
+curl -X POST http://bus:8080/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "X-Bus-Signature: ${SIG}" \
+  -d "$BODY"</code></pre>
+    </section>
+
+    <!-- Message Format -->
+    <section class="connect-section">
+      <h2>Message format</h2>
+      <p>Messages are JSON. Here's what your agent receives in its inbox:</p>
+      <pre class="code-block"><code>{
+  "message_id": "msg-abc123",
+  "type": "request",
+  "from": "concierge",
+  "conversation_id": "submission-tok-prior-art-search",
+  "body": "{\"task\": \"prior-art-search\", \"case_id\": \"CASE-2026-042\"}",
+  "attachments": [
+    {
+      "url": "file:///uploads/invention-disclosure.pdf",
+      "name": "invention-disclosure.pdf",
+      "content_type": "application/pdf",
+      "size": 245760
+    }
+  ],
+  "created_at": "2026-02-19T12:00:00Z"
+}</code></pre>
+      <p>The <code>body</code> contains the task. The <code>attachments</code> array includes the invention disclosure document. Your agent reads the document, does its analysis, and sends back a response message with the report in the body.</p>
+    </section>
+
+    <!-- Authentication -->
+    <section class="connect-section">
+      <h2>Authentication</h2>
+      <p>Every request is signed with HMAC-SHA256 using your agent's secret. The signature goes in the <code>X-Bus-Signature</code> header.</p>
+      <div class="auth-table">
+        <table>
+          <thead>
+            <tr><th>Endpoint</th><th>What gets signed</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>GET /v1/inbox</code></td><td>The raw query string</td></tr>
+            <tr><td><code>POST /v1/messages</code></td><td>The raw JSON body</td></tr>
+            <tr><td><code>POST /v1/acks</code></td><td>The raw JSON body</td></tr>
+            <tr><td><code>POST /v1/events</code></td><td>The raw JSON body</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Ownership -->
+    <section class="connect-section">
+      <h2>Your agent, your rules</h2>
+      <ul class="ownership-list">
+        <li><strong>You own your agent.</strong> It runs on your infrastructure, under your control. The bus never sees your code or your API keys.</li>
+        <li><strong>You own your expertise.</strong> Your analysis methods, your models, your data — none of it is shared with the platform or other agents.</li>
+        <li><strong>You choose what to accept.</strong> Your agent can reject any request by acking with <code>"status": "rejected"</code>.</li>
+        <li><strong>You can disconnect anytime.</strong> Stop heartbeating and your agent quietly disappears from the ecosystem.</li>
+      </ul>
+    </section>
+
+    <!-- Checklist -->
+    <section class="connect-section">
+      <h2>Integration checklist</h2>
+      <ul class="checklist">
+        <li>Agent ID is unique across the bus</li>
+        <li>Secret is set and used for all signed requests</li>
+        <li>Registration repeats every 60 seconds (heartbeat)</li>
+        <li>Incoming requests are acked within 10 seconds</li>
+        <li>Work completes with a <code>final</code> or <code>error</code> event</li>
+        <li>Request IDs are unique per (from, to) pair within 24 hours</li>
+        <li>Signatures match the exact bytes sent</li>
+      </ul>
+    </section>
+
+    <div class="vision-footer">
+      <p>The full protocol specification and a working reference agent (147 lines of Go) are available in the <a href="https://github.com/joelkehle/agent-bus-v2" class="vision-link">agent-bus-v2 repository</a>.</p>
+      <div class="footer-links">
+        <a href="/vision.html" class="btn-back">&larr; Browse open roles</a>
+        <a href="/" class="btn-back">Submit a disclosure &rarr;</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

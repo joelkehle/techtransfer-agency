@@ -36,11 +36,22 @@ func NewServer(bridge *Bridge, store *SubmissionStore, webDir, uploadDir string)
 		webDir:    webDir,
 		uploadDir: uploadDir,
 		labels: map[string]WorkflowLabel{
-			"patent-screen":      {Capability: "patent-screen", Label: "Patent Eligibility Screen", Description: "Assess patentability of an invention disclosure"},
-			"prior-art":          {Capability: "prior-art", Label: "Prior Art Search", Description: "Search for existing prior art"},
-			"market-analysis":    {Capability: "market-analysis", Label: "Market Analysis", Description: "Identify target markets and potential value"},
-			"commercialization":  {Capability: "commercialization", Label: "Commercialization Strategy", Description: "Recommend patent, open source, or other paths"},
-			"grant-restrictions": {Capability: "grant-restrictions", Label: "Grant Restriction Lookup", Description: "Check funding terms for IP restrictions"},
+			// Prior Art & Patentability
+			"patent-screen":    {Capability: "patent-screen", Label: "Patent Eligibility Screen", Description: "Assess patentability of an invention disclosure"},
+			"prior-art-search": {Capability: "prior-art-search", Label: "Prior Art Search", Description: "Search USPTO, EPO, WIPO and academic literature for prior art"},
+			"patent-opinion":   {Capability: "patent-opinion", Label: "Patentability Opinion", Description: "Formal patentability opinion and claim drafting guidance"},
+			// Technical Assessment
+			"technical-review":      {Capability: "technical-review", Label: "Technical Domain Review", Description: "Verify technical claims, assess feasibility and TRL"},
+			"competitive-landscape": {Capability: "competitive-landscape", Label: "Competitive Landscape", Description: "Map competing technologies and patent landscape"},
+			// Commercial Viability
+			"market-analysis":        {Capability: "market-analysis", Label: "Market Analysis", Description: "Total addressable market sizing and commercial potential"},
+			"licensee-identification": {Capability: "licensee-identification", Label: "Licensee Identification", Description: "Find potential licensees, partners, and industry players"},
+			"financial-valuation":    {Capability: "financial-valuation", Label: "Financial Valuation", Description: "Estimate IP value, royalty rates, and cost-to-patent ROI"},
+			// Regulatory & Legal
+			"regulatory-pathway": {Capability: "regulatory-pathway", Label: "Regulatory Pathway", Description: "FDA/EPA/FCC pathway assessment, timeline, and risks"},
+			"ip-compliance":      {Capability: "ip-compliance", Label: "IP Ownership & Compliance", Description: "Inventorship analysis, Bayh-Dole compliance, conflict of interest"},
+			// Strategic
+			"commercialization-strategy": {Capability: "commercialization-strategy", Label: "Commercialization Strategy", Description: "Licensing vs. startup vs. partnership recommendation"},
 		},
 	}
 
@@ -103,13 +114,8 @@ func (s *Server) handleWorkflows(w http.ResponseWriter, r *http.Request) {
 			seen[cap] = true
 			if label, ok := s.labels[cap]; ok {
 				workflows = append(workflows, label)
-			} else {
-				workflows = append(workflows, WorkflowLabel{
-					Capability:  cap,
-					Label:       cap,
-					Description: "",
-				})
 			}
+			// Skip capabilities without a label — they are internal pipeline steps.
 		}
 	}
 	writeJSON(w, 200, map[string]any{"workflows": workflows})
