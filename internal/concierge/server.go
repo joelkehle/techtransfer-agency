@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/joelkehle/agent-bus-v2/internal/busclient"
+	"github.com/joelkehle/techtransfer-agency/internal/busclient"
 )
 
 // WorkflowLabel provides a human-readable name for a capability.

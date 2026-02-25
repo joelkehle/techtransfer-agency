@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joelkehle/agent-bus-v2/internal/busclient"
+	"github.com/joelkehle/techtransfer-agency/internal/busclient"
 )
 
 func main() {

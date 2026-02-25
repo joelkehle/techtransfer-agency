@@ -4,7 +4,7 @@ This guide walks through adding a new agent that communicates over the Agent Bus
 
 ## Prerequisites
 
-- A running bus instance (`go run ./cmd/agent-bus-v2`) or an in-process bus
+- A running bus instance (`go run ./cmd/techtransfer-agency`) or an in-process bus
 - Your agent's **ID** (unique string, e.g. `"my-agent"`)
 - Your agent's **secret** (shared secret for HMAC-SHA256 signing)
 - Your agent's **capabilities** (machine-readable tags other agents use to discover you)

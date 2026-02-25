@@ -27,7 +27,7 @@ In-memory reference implementation of Agent Bus Protocol v2.
 ## Run
 
 ```bash
-go run ./cmd/agent-bus-v2
+go run ./cmd/techtransfer-agency
 ```
 
 Server listens on `:8080` (or `PORT`).

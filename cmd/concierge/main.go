@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/joelkehle/agent-bus-v2/internal/concierge"
+	"github.com/joelkehle/techtransfer-agency/internal/concierge"
 )
 
 func main() {

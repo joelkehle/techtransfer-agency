@@ -1,4 +1,4 @@
-module github.com/joelkehle/agent-bus-v2
+module github.com/joelkehle/techtransfer-agency
 
 go 1.24.13
 

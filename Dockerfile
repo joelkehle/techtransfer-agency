@@ -9,7 +9,7 @@ RUN go mod download 2>/dev/null || true
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/agent-bus-v2   ./cmd/agent-bus-v2
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/techtransfer-agency   ./cmd/techtransfer-agency
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/concierge       ./cmd/concierge
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/patent-pipeline ./cmd/patent-pipeline
 
@@ -18,7 +18,7 @@ FROM alpine:3.20
 
 RUN apk add --no-cache ca-certificates tzdata
 
-COPY --from=builder /out/agent-bus-v2   /usr/local/bin/agent-bus-v2
+COPY --from=builder /out/techtransfer-agency   /usr/local/bin/techtransfer-agency
 COPY --from=builder /out/concierge       /usr/local/bin/concierge
 COPY --from=builder /out/patent-pipeline /usr/local/bin/patent-pipeline
 

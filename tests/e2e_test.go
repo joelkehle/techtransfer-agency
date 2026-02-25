@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joelkehle/agent-bus-v2/internal/bus"
-	"github.com/joelkehle/agent-bus-v2/internal/busclient"
-	"github.com/joelkehle/agent-bus-v2/internal/concierge"
-	"github.com/joelkehle/agent-bus-v2/internal/httpapi"
+	"github.com/joelkehle/techtransfer-agency/internal/bus"
+	"github.com/joelkehle/techtransfer-agency/internal/busclient"
+	"github.com/joelkehle/techtransfer-agency/internal/concierge"
+	"github.com/joelkehle/techtransfer-agency/internal/httpapi"
 )
 
 // minimalPDF returns a valid PDF that contains some text.

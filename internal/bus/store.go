@@ -120,7 +120,7 @@ func NewStore(cfg Config) *Store {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		logger: log.New(os.Stdout, "agent-bus-v2 ", log.LstdFlags),
+		logger: log.New(os.Stdout, "techtransfer-agency ", log.LstdFlags),
 	}
 }
 

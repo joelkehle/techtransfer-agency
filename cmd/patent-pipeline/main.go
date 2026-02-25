@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/joelkehle/agent-bus-v2/internal/patentteam"
+	"github.com/joelkehle/techtransfer-agency/internal/patentteam"
 )
 
 func main() {

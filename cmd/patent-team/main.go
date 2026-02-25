@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joelkehle/agent-bus-v2/internal/bus"
-	"github.com/joelkehle/agent-bus-v2/internal/httpapi"
-	"github.com/joelkehle/agent-bus-v2/internal/patentteam"
+	"github.com/joelkehle/techtransfer-agency/internal/bus"
+	"github.com/joelkehle/techtransfer-agency/internal/httpapi"
+	"github.com/joelkehle/techtransfer-agency/internal/patentteam"
 )
 
 func main() {

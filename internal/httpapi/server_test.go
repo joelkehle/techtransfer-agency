@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joelkehle/agent-bus-v2/internal/bus"
+	"github.com/joelkehle/techtransfer-agency/internal/bus"
 )
 
 func newServerForTest() http.Handler {

@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/joelkehle/agent-bus-v2/internal/bus"
-	"github.com/joelkehle/agent-bus-v2/internal/httpapi"
+	"github.com/joelkehle/techtransfer-agency/internal/bus"
+	"github.com/joelkehle/techtransfer-agency/internal/httpapi"
 )
 
 func main() {
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	h := httpapi.NewServer(store)
-	log.Printf("agent-bus-v2 listening on %s", addr)
+	log.Printf("techtransfer-agency listening on %s", addr)
 	if err := http.ListenAndServe(addr, h); err != nil {
 		log.Fatal(err)
 	}
