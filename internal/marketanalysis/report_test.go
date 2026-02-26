@@ -19,7 +19,7 @@ func TestBuildResponseIncludesModeAndRecommendation(t *testing.T) {
 	if env.ReportMode != ReportModeDegraded {
 		t.Fatalf("unexpected report mode: %s", env.ReportMode)
 	}
-	if !strings.Contains(env.ReportMarkdown, "INCOMPLETE ANALYSIS") {
+	if !strings.Contains(env.ReportMarkdown, "DEGRADED") {
 		t.Fatal("expected degraded warning in markdown")
 	}
 }
