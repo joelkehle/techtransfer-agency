@@ -92,7 +92,6 @@ func TestHandleSubmitValid(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	writer.WriteField("workflows", "patent-screen,prior-art")
-	writer.WriteField("case_id", "case-submit-1")
 
 	fw, err := writer.CreateFormFile("file", "test.pdf")
 	if err != nil {
@@ -126,8 +125,8 @@ func TestHandleSubmitValid(t *testing.T) {
 	if sub == nil {
 		t.Fatal("expected submission to be in store")
 	}
-	if sub.CaseID != "case-submit-1" {
-		t.Fatalf("expected case_id=case-submit-1, got %s", sub.CaseID)
+	if got, wantPrefix := sub.CaseID, "SUB-"; len(got) <= len(wantPrefix) || got[:len(wantPrefix)] != wantPrefix {
+		t.Fatalf("expected generated case_id prefix %q, got %q", wantPrefix, got)
 	}
 }
 
@@ -136,7 +135,6 @@ func TestHandleSubmitMissingWorkflows(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("case_id", "case-no-wf")
 	writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/submit", body)
@@ -155,7 +153,6 @@ func TestHandleSubmitNoFile(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	writer.WriteField("workflows", "patent-screen")
-	writer.WriteField("case_id", "case-no-file")
 	writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/submit", body)
@@ -352,7 +349,6 @@ func TestHandleSubmitCreatesUploadFile(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	writer.WriteField("workflows", "patent-screen")
-	writer.WriteField("case_id", "case-upload")
 	fw, _ := writer.CreateFormFile("file", "upload-test.txt")
 	fw.Write([]byte("uploaded content"))
 	writer.Close()

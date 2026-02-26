@@ -143,10 +143,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		workflows[i] = strings.TrimSpace(workflows[i])
 	}
 
-	caseID := strings.TrimSpace(r.FormValue("case_id"))
-	if caseID == "" {
-		caseID = fmt.Sprintf("SUB-%d", time.Now().UTC().UnixNano())
-	}
+	caseID := fmt.Sprintf("SUB-%d", time.Now().UTC().UnixNano())
 
 	// Handle file upload.
 	var attachments []busclient.Attachment

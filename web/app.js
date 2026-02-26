@@ -7,7 +7,6 @@
   var dropZone = document.getElementById("drop-zone");
   var fileInput = document.getElementById("file-input");
   var fileNameEl = document.getElementById("file-name");
-  var caseIdInput = document.getElementById("case-id");
   var workflowCheckboxes = document.getElementById("workflow-checkboxes");
   var submitError = document.getElementById("submit-error");
   var btnSubmit = document.getElementById("btn-submit");
@@ -152,11 +151,6 @@
     var formData = new FormData();
     formData.append("file", selectedFile);
     formData.append("workflows", selectedWorkflows.join(","));
-
-    var caseId = caseIdInput.value.trim();
-    if (caseId) {
-      formData.append("case_id", caseId);
-    }
 
     btnSubmit.disabled = true;
     btnSubmit.textContent = "Submitting...";
