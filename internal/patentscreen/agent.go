@@ -34,6 +34,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	if err := a.register(ctx); err != nil {
 		return err
 	}
+	log.Printf("%s registered capability=%s", a.cfg.AgentID, CapabilityPatentEligibilityScreen)
 	go a.heartbeatLoop(ctx, 60*time.Second)
 
 	for {
@@ -49,6 +50,7 @@ func (a *Agent) Run(ctx context.Context) error {
 			}
 			a.cursor = next
 			for _, evt := range events {
+				log.Printf("%s received message_id=%s from=%s conversation=%s", a.cfg.AgentID, evt.MessageID, evt.From, evt.ConversationID)
 				go func(ev InboxEvent) {
 					if err := a.handleEvent(ctx, ev); err != nil {
 						log.Printf("patent-screen handle event failed: %v", err)
@@ -69,6 +71,8 @@ func (a *Agent) heartbeatLoop(ctx context.Context, interval time.Duration) {
 		case <-ticker.C:
 			if err := a.register(ctx); err != nil {
 				log.Printf("patent-screen heartbeat register failed: %v", err)
+			} else {
+				log.Printf("%s heartbeat renewed capability=%s", a.cfg.AgentID, CapabilityPatentEligibilityScreen)
 			}
 		}
 	}
@@ -79,6 +83,7 @@ func (a *Agent) register(ctx context.Context) error {
 }
 
 func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
+	startedAt := time.Now()
 	if err := a.client.Ack(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "accepted", "processing patent eligibility screen"); err != nil {
 		return err
 	}
@@ -89,8 +94,10 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 		_ = a.sendError(ctx, evt, "invalid request envelope")
 		return err
 	}
+	log.Printf("%s accepted message_id=%s case_id=%s chars=%d extraction_method=%s truncated=%t", a.cfg.AgentID, evt.MessageID, req.CaseID, len(req.DisclosureText), req.Metadata.ExtractionMethod, req.Metadata.Truncated)
 
 	result, err := a.pipeline.RunWithProgress(ctx, req, func(stage, message string) {
+		log.Printf("%s stage=%s message_id=%s progress=%s", a.cfg.AgentID, stage, evt.MessageID, message)
 		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "progress", message, map[string]any{"stage": stage})
 	})
 	if err != nil {
@@ -123,6 +130,7 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 		_ = a.sendError(ctx, evt, "failed to send response")
 		return err
 	}
+	log.Printf("%s completed message_id=%s case_id=%s determination=%s pathway=%s elapsed=%s", a.cfg.AgentID, evt.MessageID, req.CaseID, result.FinalDetermination, result.Pathway, time.Since(startedAt).Round(time.Millisecond))
 
 	_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "final", string(result.FinalDetermination), map[string]any{"pathway": result.Pathway})
 	return nil

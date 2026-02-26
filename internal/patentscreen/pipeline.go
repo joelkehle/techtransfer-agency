@@ -57,29 +57,35 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 	res.Request = req
 
 	emit(progress, "stage_1", "Stage 1: Extracting invention details...")
+	stageStarted := time.Now()
 	s1, m1, err := p.runner.RunStage1(ctx, req)
 	if err != nil {
 		return res, &StageError{Stage: "stage_1", Err: err}
 	}
+	emit(progress, "stage_1", fmt.Sprintf("Stage 1 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
 	res.Stage1 = s1
 	res.Attempts["stage_1"] = m1
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_1")
 
 	// Advisory track always runs after stage 1.
 	emit(progress, "stage_6", "Stage 6: Running §102/§103 preliminary flags...")
+	stageStarted = time.Now()
 	s6, m6, err := p.runner.RunStage6(ctx, s1)
 	if err != nil {
 		return res, &StageError{Stage: "stage_6", Err: err}
 	}
+	emit(progress, "stage_6", fmt.Sprintf("Stage 6 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
 	res.Stage6 = s6
 	res.Attempts["stage_6"] = m6
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_6")
 
 	emit(progress, "stage_2", "Stage 2: Classifying statutory category...")
+	stageStarted = time.Now()
 	s2, m2, err := p.runner.RunStage2(ctx, s1)
 	if err != nil {
 		return res, &StageError{Stage: "stage_2", Err: err}
 	}
+	emit(progress, "stage_2", fmt.Sprintf("Stage 2 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
 	res.Stage2 = &s2
 	res.Attempts["stage_2"] = m2
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_2")
@@ -92,10 +98,12 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 	}
 
 	emit(progress, "stage_3", "Stage 3: Evaluating judicial exception (Step 2A Prong 1)...")
+	stageStarted = time.Now()
 	s3, m3, err := p.runner.RunStage3(ctx, s1, s2)
 	if err != nil {
 		return res, &StageError{Stage: "stage_3", Err: err}
 	}
+	emit(progress, "stage_3", fmt.Sprintf("Stage 3 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
 	res.Stage3 = &s3
 	res.Attempts["stage_3"] = m3
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_3")
@@ -108,10 +116,12 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 	}
 
 	emit(progress, "stage_4", "Stage 4: Evaluating practical application (Step 2A Prong 2)...")
+	stageStarted = time.Now()
 	s4, m4, err := p.runner.RunStage4(ctx, s1, s3)
 	if err != nil {
 		return res, &StageError{Stage: "stage_4", Err: err}
 	}
+	emit(progress, "stage_4", fmt.Sprintf("Stage 4 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
 	res.Stage4 = &s4
 	res.Attempts["stage_4"] = m4
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_4")
@@ -124,10 +134,12 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 	}
 
 	emit(progress, "stage_5", "Stage 5: Evaluating inventive concept (Step 2B)...")
+	stageStarted = time.Now()
 	s5, m5, err := p.runner.RunStage5(ctx, s1, s3, s4)
 	if err != nil {
 		return res, &StageError{Stage: "stage_5", Err: err}
 	}
+	emit(progress, "stage_5", fmt.Sprintf("Stage 5 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
 	res.Stage5 = &s5
 	res.Attempts["stage_5"] = m5
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_5")

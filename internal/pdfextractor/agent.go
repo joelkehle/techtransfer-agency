@@ -42,6 +42,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	if err := a.register(ctx); err != nil {
 		return err
 	}
+	log.Printf("%s registered capability=%s next=%s", a.cfg.AgentID, a.cfg.Capability, a.cfg.NextAgentID)
 
 	heartbeat := time.NewTicker(60 * time.Second)
 	defer heartbeat.Stop()
@@ -53,6 +54,8 @@ func (a *Agent) Run(ctx context.Context) error {
 		case <-heartbeat.C:
 			if err := a.register(ctx); err != nil {
 				log.Printf("patent-extractor heartbeat register failed: %v", err)
+			} else {
+				log.Printf("%s heartbeat renewed capability=%s", a.cfg.AgentID, a.cfg.Capability)
 			}
 		default:
 			events, next, err := a.client.PollInbox(ctx, a.cfg.AgentID, a.cfg.Secret, a.cursor, a.cfg.PollWaitSec)
@@ -63,6 +66,7 @@ func (a *Agent) Run(ctx context.Context) error {
 			}
 			a.cursor = next
 			for _, evt := range events {
+				log.Printf("%s received message_id=%s from=%s conversation=%s", a.cfg.AgentID, evt.MessageID, evt.From, evt.ConversationID)
 				if err := a.handleEvent(ctx, evt); err != nil {
 					log.Printf("patent-extractor handle event failed: %v", err)
 				}

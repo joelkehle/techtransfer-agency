@@ -124,6 +124,8 @@ func HandleIntakeMessage(ctx context.Context, client *Client, agentID, secret st
 // HandleExtractorMessage extracts text from a PDF and forwards to the next pipeline agent.
 // It propagates reply_to from incoming metadata.
 func HandleExtractorMessage(ctx context.Context, client *Client, agentID, secret string, evt InboxEvent, nextAgent string) error {
+	startedAt := time.Now()
+	log.Printf("%s received message_id=%s from=%s conversation=%s attachments=%d", agentID, evt.MessageID, evt.From, evt.ConversationID, len(evt.Attachments))
 	if err := client.Ack(ctx, agentID, secret, evt.MessageID, "accepted", "extracting"); err != nil {
 		return err
 	}
@@ -144,6 +146,7 @@ func HandleExtractorMessage(ctx context.Context, client *Client, agentID, secret
 		_ = client.Event(ctx, agentID, secret, evt.MessageID, "error", err.Error(), nil)
 		return err
 	}
+	log.Printf("%s extracted message_id=%s method=%s chars=%d truncated=%t elapsed=%s", agentID, evt.MessageID, extracted.Method, len(extracted.Text), extracted.Truncated, time.Since(startedAt).Round(time.Millisecond))
 
 	var payload map[string]any
 	_ = json.Unmarshal([]byte(evt.Body), &payload)
@@ -172,6 +175,7 @@ func HandleExtractorMessage(ctx context.Context, client *Client, agentID, secret
 		_ = client.Event(ctx, agentID, secret, evt.MessageID, "error", "failed to forward to patent-agent", nil)
 		return err
 	}
+	log.Printf("%s forwarded message_id=%s to=%s conversation=%s case_id=%s", agentID, evt.MessageID, nextAgent, evt.ConversationID, caseID)
 
 	_ = client.Event(ctx, agentID, secret, evt.MessageID, "final", "extracted and forwarded to "+nextAgent, map[string]any{"method": extracted.Method})
 	return nil
@@ -373,6 +377,8 @@ func (ps *PipelineService) heartbeat(ctx context.Context, cfg AgentConfig) {
 		case <-ticker.C:
 			if err := ps.client.RegisterAgent(ctx, cfg.ID, cfg.Secret, cfg.Capabilities); err != nil {
 				log.Printf("%s heartbeat error: %v", cfg.ID, err)
+			} else {
+				log.Printf("%s heartbeat renewed ttl=120s capabilities=%v", cfg.ID, cfg.Capabilities)
 			}
 		}
 	}
