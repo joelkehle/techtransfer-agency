@@ -15,6 +15,10 @@
   var workflowStatusList = document.getElementById("workflow-status-list");
   var statusError = document.getElementById("status-error");
   var btnNew = document.getElementById("btn-new");
+  var reportViewer = document.getElementById("report-viewer");
+  var reportTitle = document.getElementById("report-title");
+  var reportBadges = document.getElementById("report-badges");
+  var reportHtml = document.getElementById("report-html");
 
   var selectedFile = null;
   var workflows = [];
@@ -274,6 +278,11 @@
       // Update action area
       if (status === "completed" && info.ready) {
         actionEl.innerHTML =
+          '<button class="btn-view" data-token="' +
+          escapeAttr(data.token) +
+          '" data-workflow="' +
+          escapeAttr(cap) +
+          '">View</button> ' +
           '<a class="btn-download" href="/report/' +
           encodeURIComponent(data.token) +
           "/" +
@@ -290,6 +299,17 @@
         actionEl.textContent = "Pending";
         actionEl.className = "status-label";
       }
+    }
+
+    var viewButtons = workflowStatusList.querySelectorAll(".btn-view");
+    for (var j = 0; j < viewButtons.length; j++) {
+      if (viewButtons[j].getAttribute("data-bound") === "1") continue;
+      viewButtons[j].setAttribute("data-bound", "1");
+      viewButtons[j].addEventListener("click", function (e) {
+        var token = e.currentTarget.getAttribute("data-token");
+        var workflow = e.currentTarget.getAttribute("data-workflow");
+        loadReportPreview(token, workflow);
+      });
     }
   }
 
@@ -325,6 +345,10 @@
     btnSubmit.textContent = "Submit";
     hideError(submitError);
     hideError(statusError);
+    reportViewer.hidden = true;
+    reportHtml.innerHTML = "";
+    reportBadges.innerHTML = "";
+    reportTitle.textContent = "Report Preview";
 
     var boxes = workflowCheckboxes.querySelectorAll('input[type="checkbox"]');
     for (var i = 0; i < boxes.length; i++) {
@@ -384,6 +408,216 @@
       '<line x1="9" y1="9" x2="15" y2="15"/>' +
       "</svg>"
     );
+  }
+
+  function loadReportPreview(token, workflow) {
+    fetch("/report/" + encodeURIComponent(token) + "/" + encodeURIComponent(workflow))
+      .then(function (res) {
+        if (!res.ok) throw new Error("Report fetch failed (HTTP " + res.status + ")");
+        return res.text();
+      })
+      .then(function (raw) {
+        var title = getWorkflowLabel(workflow) + " Report";
+        var markdown = raw;
+        var badges = [];
+
+        try {
+          var parsed = JSON.parse(raw);
+          if (parsed && parsed.report_markdown) {
+            markdown = parsed.report_markdown;
+            if (parsed.determination) badges.push(parsed.determination);
+            if (parsed.pathway) badges.push(parsed.pathway);
+            if (parsed.recommendation) badges.push(parsed.recommendation);
+            if (parsed.recommendation_confidence) badges.push(parsed.recommendation_confidence);
+            if (parsed.report_mode) badges.push(parsed.report_mode);
+          }
+        } catch (e) {}
+
+        reportTitle.textContent = title;
+        reportBadges.innerHTML = badges
+          .map(function (b) {
+            return '<span class="report-badge">' + escapeHtml(String(b)) + "</span>";
+          })
+          .join("");
+        reportHtml.innerHTML = markdownToHtml(markdown);
+        reportViewer.hidden = false;
+        reportViewer.scrollIntoView({ behavior: "smooth", block: "start" });
+      })
+      .catch(function (err) {
+        showError(statusError, err.message);
+      });
+  }
+
+  function markdownToHtml(markdown) {
+    var lines = String(markdown || "").split("\n");
+    var html = [];
+    var inCode = false;
+    var inUl = false;
+    var inOl = false;
+    var inBlockquote = false;
+    var inTable = false;
+    var tableHeaderDone = false;
+
+    function closeLists() {
+      if (inUl) {
+        html.push("</ul>");
+        inUl = false;
+      }
+      if (inOl) {
+        html.push("</ol>");
+        inOl = false;
+      }
+    }
+
+    function closeQuote() {
+      if (inBlockquote) {
+        html.push("</blockquote>");
+        inBlockquote = false;
+      }
+    }
+
+    function closeTable() {
+      if (inTable) {
+        html.push("</tbody></table>");
+        inTable = false;
+        tableHeaderDone = false;
+      }
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var trimmed = line.trim();
+
+      if (/^```/.test(trimmed)) {
+        closeLists();
+        closeQuote();
+        closeTable();
+        if (!inCode) {
+          html.push('<pre><code>');
+          inCode = true;
+        } else {
+          html.push("</code></pre>");
+          inCode = false;
+        }
+        continue;
+      }
+
+      if (inCode) {
+        html.push(escapeHtml(line) + "\n");
+        continue;
+      }
+
+      if (trimmed === "") {
+        closeLists();
+        closeQuote();
+        closeTable();
+        continue;
+      }
+
+      if (/^---+$/.test(trimmed)) {
+        closeLists();
+        closeQuote();
+        closeTable();
+        html.push("<hr>");
+        continue;
+      }
+
+      if (/^>\s?/.test(trimmed)) {
+        closeLists();
+        closeTable();
+        if (!inBlockquote) {
+          html.push("<blockquote>");
+          inBlockquote = true;
+        }
+        html.push("<p>" + renderInline(trimmed.replace(/^>\s?/, "")) + "</p>");
+        continue;
+      } else {
+        closeQuote();
+      }
+
+      if (/^###\s+/.test(trimmed)) {
+        closeLists();
+        closeTable();
+        html.push("<h3>" + renderInline(trimmed.replace(/^###\s+/, "")) + "</h3>");
+        continue;
+      }
+      if (/^##\s+/.test(trimmed)) {
+        closeLists();
+        closeTable();
+        html.push("<h2>" + renderInline(trimmed.replace(/^##\s+/, "")) + "</h2>");
+        continue;
+      }
+      if (/^#\s+/.test(trimmed)) {
+        closeLists();
+        closeTable();
+        html.push("<h1>" + renderInline(trimmed.replace(/^#\s+/, "")) + "</h1>");
+        continue;
+      }
+
+      if (/^\|.*\|$/.test(trimmed)) {
+        closeLists();
+        closeQuote();
+        var cells = trimmed
+          .split("|")
+          .slice(1, -1)
+          .map(function (c) {
+            return renderInline(c.trim());
+          });
+        if (!inTable) {
+          html.push('<table class="report-table"><thead></thead><tbody>');
+          inTable = true;
+        }
+        if (!tableHeaderDone) {
+          html.push("<thead><tr>" + cells.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "</tr></thead>");
+          tableHeaderDone = true;
+          continue;
+        }
+        if (/^[-:\s|]+$/.test(trimmed)) {
+          continue;
+        }
+        html.push("<tr>" + cells.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>");
+        continue;
+      }
+
+      closeTable();
+
+      if (/^[-*]\s+/.test(trimmed)) {
+        if (!inUl) {
+          closeLists();
+          html.push("<ul>");
+          inUl = true;
+        }
+        html.push("<li>" + renderInline(trimmed.replace(/^[-*]\s+/, "")) + "</li>");
+        continue;
+      }
+
+      if (/^\d+\.\s+/.test(trimmed)) {
+        if (!inOl) {
+          closeLists();
+          html.push("<ol>");
+          inOl = true;
+        }
+        html.push("<li>" + renderInline(trimmed.replace(/^\d+\.\s+/, "")) + "</li>");
+        continue;
+      }
+
+      closeLists();
+      html.push("<p>" + renderInline(trimmed) + "</p>");
+    }
+
+    closeLists();
+    closeQuote();
+    closeTable();
+    if (inCode) html.push("</code></pre>");
+    return html.join("\n");
+  }
+
+  function renderInline(s) {
+    var out = escapeHtml(s);
+    out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+    out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    out = out.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    return out;
   }
 
   // --- Init ---

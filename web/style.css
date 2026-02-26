@@ -955,6 +955,24 @@ button:active:not(:disabled) {
   background: #d1fae5;
 }
 
+.btn-view {
+  display: inline-block;
+  width: auto;
+  padding: 0.3rem 0.8rem;
+  margin-right: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--surface-alt);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn-view:hover {
+  background: var(--accent-wash);
+}
+
 .status-label {
   font-size: 0.78rem;
   color: var(--ink-4);
@@ -963,6 +981,169 @@ button:active:not(:disabled) {
 
 .status-label.error {
   color: var(--error);
+}
+
+.report-viewer {
+  margin-top: 1.5rem;
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  background: var(--surface-alt);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 1rem 1rem 1.25rem 1.1rem;
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.9rem;
+}
+
+.report-header h2 {
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+.report-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.report-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--accent-hover);
+  border: 1px solid #fcd34d;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.report-html {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.report-html h1,
+.report-html h2,
+.report-html h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.3;
+  margin: 1rem 0 0.55rem;
+}
+
+.report-html h1 { font-size: 1.25rem; }
+.report-html h2 { font-size: 1.05rem; }
+.report-html h3 { font-size: 0.95rem; }
+
+.report-html p,
+.report-html ul,
+.report-html ol,
+.report-html blockquote,
+.report-html pre,
+.report-html table {
+  margin: 0.5rem 0;
+}
+
+.report-html ul,
+.report-html ol {
+  padding-left: 1.2rem;
+}
+
+.report-html code {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  padding: 0.05rem 0.28rem;
+  font-size: 0.82em;
+}
+
+.report-html pre {
+  overflow-x: auto;
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-light);
+  font-size: 0.8rem;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid var(--border-light);
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.report-table thead th {
+  background: #f3f4f6;
+  font-weight: 700;
+}
+
+.report-html pre code {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+}
+
+.report-html hr {
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  margin: 0.75rem 0;
+}
+
+.report-html blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.7rem;
+  color: var(--ink-2);
+  background: #fafaf9;
+}
+
+@media print {
+  body {
+    background: #fff;
+    padding: 0;
+  }
+
+  .services-overview,
+  #view-submit,
+  #workflow-status-list,
+  #btn-new,
+  .btn-download,
+  .btn-view {
+    display: none !important;
+  }
+
+  .card,
+  .card-wide,
+  .report-viewer {
+    max-width: none;
+    width: 100%;
+    box-shadow: none;
+    border: none;
+    background: #fff;
+    padding: 0;
+    margin: 0;
+  }
+
+  .report-html {
+    font-size: 11pt;
+    color: #000;
+  }
 }
 
 /* ===== Animations ===== */
