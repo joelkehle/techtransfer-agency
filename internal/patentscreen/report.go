@@ -209,9 +209,6 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 	fmt.Fprintf(&b, "This section is advisory only and does not change the eligibility determination above.\n\n")
 	fmt.Fprintf(&b, "**Prior Art Search Priority**: `%s`\n\n", result.Stage6.PriorArtSearchPriority)
 	fmt.Fprintf(&b, "### Novelty Concerns (§102)\n\n")
-	if len(result.Stage6.NoveltyConcerns) == 0 && len(result.Stage6.NonObviousnessConcerns) == 0 {
-		fmt.Fprintf(&b, "- No explicit novelty/non-obviousness concerns flagged from disclosure text alone.\n")
-	}
 	for _, c := range result.Stage6.NoveltyConcerns {
 		fmt.Fprintf(&b, "- %s\n", sanitizeLine(c))
 	}

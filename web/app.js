@@ -478,7 +478,10 @@
 
     function closeTable() {
       if (inTable) {
-        html.push("</tbody></table>");
+        if (tableHeaderDone) {
+          html.push("</tbody>");
+        }
+        html.push("</table>");
         inTable = false;
         tableHeaderDone = false;
       }
@@ -564,11 +567,11 @@
             return renderInline(c.trim());
           });
         if (!inTable) {
-          html.push('<table class="report-table"><thead></thead><tbody>');
+          html.push('<table class="report-table">');
           inTable = true;
         }
         if (!tableHeaderDone) {
-          html.push("<thead><tr>" + cells.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "</tr></thead>");
+          html.push("<thead><tr>" + cells.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "</tr></thead><tbody>");
           tableHeaderDone = true;
           continue;
         }

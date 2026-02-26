@@ -153,11 +153,16 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 			writeAssumptionBlock(&b, "Royalty rate (%)", result.Stage4.RoyaltyRatePct.Low, result.Stage4.RoyaltyRatePct.High, result.Stage4.RoyaltyRatePct.Source, result.Stage4.RoyaltyRatePct.Reasoning)
 			writeAssumptionBlock(&b, "P(license in 3 years)", result.Stage4.PLicense3yr.Low, result.Stage4.PLicense3yr.High, result.Stage4.PLicense3yr.Source, result.Stage4.PLicense3yr.Reasoning)
 			writeAssumptionBlock(&b, "P(commercial success)", result.Stage4.PCommercialSuccess.Low, result.Stage4.PCommercialSuccess.High, result.Stage4.PCommercialSuccess.Source, result.Stage4.PCommercialSuccess.Reasoning)
+			writeAssumptionBlockInt(&b, "Time to license (months)", result.Stage4.TimeToLicenseMonths.Low, result.Stage4.TimeToLicenseMonths.High, result.Stage4.TimeToLicenseMonths.Source, result.Stage4.TimeToLicenseMonths.Reasoning)
+			writeAssumptionBlockInt(&b, "Time from license to revenue (months)", result.Stage4.TimeFromLicenseToRevenueMonths.Low, result.Stage4.TimeFromLicenseToRevenueMonths.High, result.Stage4.TimeFromLicenseToRevenueMonths.Source, result.Stage4.TimeFromLicenseToRevenueMonths.Reasoning)
+			writeAssumptionBlockInt(&b, "Annual revenue to licensee (USD)", result.Stage4.AnnualRevenueToLicenseeUSD.Low, result.Stage4.AnnualRevenueToLicenseeUSD.High, result.Stage4.AnnualRevenueToLicenseeUSD.Source, result.Stage4.AnnualRevenueToLicenseeUSD.Reasoning)
+			writeAssumptionBlockInt(&b, "License duration (years)", result.Stage4.LicenseDurationYears.Low, result.Stage4.LicenseDurationYears.High, result.Stage4.LicenseDurationYears.Source, result.Stage4.LicenseDurationYears.Reasoning)
+			writeAssumptionBlockInt(&b, "Patent cost (USD)", result.Stage4.PatentCostUSD.Low, result.Stage4.PatentCostUSD.High, result.Stage4.PatentCostUSD.Source, result.Stage4.PatentCostUSD.Reasoning)
 		}
 		fmt.Fprintf(&b, "### Scenario Results\n\n")
 		for _, name := range []string{"pessimistic", "base", "optimistic"} {
 			s := result.Stage4Computed.Scenarios[name]
-			fmt.Fprintf(&b, "- %s: NPV $%.0f (exceeds patent cost: %s)\n", strings.Title(name), s.NPVUSD, yesNo(s.ExceedsPatentCost))
+			fmt.Fprintf(&b, "- %s: NPV $%.0f (exceeds patent cost: %s)\n", scenarioLabel(name), s.NPVUSD, yesNo(s.ExceedsPatentCost))
 		}
 		fmt.Fprintf(&b, "- Patent cost midpoint: $%.0f\n", result.Stage4Computed.PatentCostMidUSD)
 		if len(result.Stage4Computed.SensitivityDrivers) > 0 {
@@ -280,6 +285,23 @@ func writeAssumptionBlock(b *strings.Builder, name string, low, high float64, sr
 	fmt.Fprintf(b, "- %s: %.3f to %.3f [%s] — %s\n", name, low, high, src, sanitize(reason))
 }
 
+func writeAssumptionBlockInt(b *strings.Builder, name string, low, high int, src SourceType, reason string) {
+	fmt.Fprintf(b, "- %s: %d to %d [%s] — %s\n", name, low, high, src, sanitize(reason))
+}
+
+func scenarioLabel(name string) string {
+	switch name {
+	case "pessimistic":
+		return "Pessimistic"
+	case "base":
+		return "Base"
+	case "optimistic":
+		return "Optimistic"
+	default:
+		return name
+	}
+}
+
 func writeAuditTrail(b *strings.Builder, result PipelineResult) {
 	seen := map[string]bool{}
 	add := func(key, line string) {
@@ -302,6 +324,11 @@ func writeAuditTrail(b *strings.Builder, result PipelineResult) {
 		add("stage4_royalty", fmt.Sprintf("[%s] Royalty rate: %s", result.Stage4.RoyaltyRatePct.Source, sanitize(result.Stage4.RoyaltyRatePct.Reasoning)))
 		add("stage4_plicense", fmt.Sprintf("[%s] P(license): %s", result.Stage4.PLicense3yr.Source, sanitize(result.Stage4.PLicense3yr.Reasoning)))
 		add("stage4_psuccess", fmt.Sprintf("[%s] P(success): %s", result.Stage4.PCommercialSuccess.Source, sanitize(result.Stage4.PCommercialSuccess.Reasoning)))
+		add("stage4_ttl", fmt.Sprintf("[%s] Time to license: %s", result.Stage4.TimeToLicenseMonths.Source, sanitize(result.Stage4.TimeToLicenseMonths.Reasoning)))
+		add("stage4_ttr", fmt.Sprintf("[%s] Time from license to revenue: %s", result.Stage4.TimeFromLicenseToRevenueMonths.Source, sanitize(result.Stage4.TimeFromLicenseToRevenueMonths.Reasoning)))
+		add("stage4_rev", fmt.Sprintf("[%s] Annual revenue to licensee: %s", result.Stage4.AnnualRevenueToLicenseeUSD.Source, sanitize(result.Stage4.AnnualRevenueToLicenseeUSD.Reasoning)))
+		add("stage4_years", fmt.Sprintf("[%s] License duration years: %s", result.Stage4.LicenseDurationYears.Source, sanitize(result.Stage4.LicenseDurationYears.Reasoning)))
+		add("stage4_cost", fmt.Sprintf("[%s] Patent cost: %s", result.Stage4.PatentCostUSD.Source, sanitize(result.Stage4.PatentCostUSD.Reasoning)))
 	}
 	if len(seen) == 0 {
 		fmt.Fprintf(b, "- No explicit assumptions recorded.\n")
