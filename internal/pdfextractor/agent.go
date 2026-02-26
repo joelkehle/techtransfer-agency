@@ -10,11 +10,10 @@ import (
 	"github.com/joelkehle/techtransfer-agency/internal/patentteam"
 )
 
-const CapabilityPatentScreen = "patent-screen"
-
 type AgentConfig struct {
 	BusURL      string
 	AgentID     string
+	Capability  string
 	Secret      string
 	NextAgentID string
 	PollWaitSec int
@@ -29,6 +28,9 @@ type Agent struct {
 func NewAgent(cfg AgentConfig) *Agent {
 	if cfg.PollWaitSec <= 0 {
 		cfg.PollWaitSec = 5
+	}
+	if cfg.Capability == "" {
+		cfg.Capability = "patent-screen"
 	}
 	if cfg.NextAgentID == "" {
 		cfg.NextAgentID = "patent-screen"
@@ -70,7 +72,7 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 func (a *Agent) register(ctx context.Context) error {
-	return a.client.RegisterAgent(ctx, a.cfg.AgentID, a.cfg.Secret, []string{CapabilityPatentScreen})
+	return a.client.RegisterAgent(ctx, a.cfg.AgentID, a.cfg.Secret, []string{a.cfg.Capability})
 }
 
 func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
