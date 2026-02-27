@@ -76,6 +76,8 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	// Prevent stale frontend bundles from breaking the UI after deploys.
+	w.Header().Set("Cache-Control", "no-store")
 	if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 		http.ServeFile(w, r, filepath.Join(s.webDir, "index.html"))
 		return
