@@ -592,8 +592,22 @@ func validStage4Source(v SourceType) bool {
 }
 
 func asString(v any) string {
-	s, _ := v.(string)
-	return s
+	switch t := v.(type) {
+	case string:
+		return t
+	case []string:
+		return strings.Join(t, "; ")
+	case []any:
+		parts := make([]string, 0, len(t))
+		for _, item := range t {
+			if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, "; ")
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 func isNilLike(v any) bool {

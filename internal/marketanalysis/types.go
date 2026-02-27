@@ -6,7 +6,7 @@ const Disclaimer = "This is a preliminary automated market assessment, not a val
 	"Estimates are based on limited disclosure information and domain default assumptions."
 
 const (
-	CapabilityMarketAnalysis = "market-analysis"
+	CapabilityMarketAnalysis = "market-analysis-pipeline"
 	MaxDisclosureChars       = 100000
 	MinDisclosureChars       = 100
 )
