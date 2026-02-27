@@ -334,7 +334,6 @@
     fileInput.value = "";
     fileNameEl.textContent = "";
     dropZone.classList.remove("has-file");
-    caseIdInput.value = "";
     btnSubmit.disabled = true;
     btnSubmit.textContent = "Submit";
     hideError(submitError);
