@@ -3,6 +3,10 @@ cover.out
 uploads/
 data/state.json
 .claude/
+.scratch/
+.env
+test-results/
+market-analysis
 node_modules/
 bus.db
 bus.db-shm
