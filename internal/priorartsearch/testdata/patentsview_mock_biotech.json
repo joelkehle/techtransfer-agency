@@ -1,0 +1,27 @@
+{
+  "error": false,
+  "count": 2,
+  "total_hits": 35,
+  "patents": [
+    {
+      "patent_id": "10995231",
+      "patent_title": "Lipid nanoparticle compositions for nucleic acid delivery",
+      "patent_abstract": "Compositions include ionizable lipids, helper lipids, PEG-lipids, and targeting moieties for liver-directed delivery.",
+      "patent_date": "2021-05-04",
+      "application": {"filing_date": "2017-09-12"},
+      "assignees": [{"assignee_organization": "ModernaTX, Inc."}],
+      "cpc_at_issue": [{"cpc_subclass_id": "A61K"}, {"cpc_subclass_id": "C12N"}],
+      "inventors": [{"inventor_name_first": "Sara", "inventor_name_last": "Kim"}]
+    },
+    {
+      "patent_id": "10869944",
+      "patent_title": "Targeted mRNA formulations for metabolic disease",
+      "patent_abstract": "Disclosed are mRNA delivery particles with receptor-targeting ligands and controlled particle size.",
+      "patent_date": "2020-12-22",
+      "application": {"filing_date": "2016-11-07"},
+      "assignees": [{"assignee_organization": "Regeneron Pharmaceuticals, Inc."}],
+      "cpc_at_issue": [{"cpc_subclass_id": "A61K"}],
+      "inventors": [{"inventor_name_first": "Dina", "inventor_name_last": "Park"}]
+    }
+  ]
+}

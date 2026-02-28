@@ -1,0 +1,27 @@
+{
+  "error": false,
+  "count": 2,
+  "total_hits": 42,
+  "patents": [
+    {
+      "patent_id": "11342456",
+      "patent_title": "Federated model training with secure aggregation",
+      "patent_abstract": "Systems and methods for distributed training using encrypted updates and aggregation across participating clients.",
+      "patent_date": "2022-05-24",
+      "application": {"filing_date": "2019-01-15"},
+      "assignees": [{"assignee_organization": "Google LLC"}],
+      "cpc_at_issue": [{"cpc_subclass_id": "G06N"}, {"cpc_subclass_id": "H04L"}],
+      "inventors": [{"inventor_name_first": "Alice", "inventor_name_last": "Ng"}]
+    },
+    {
+      "patent_id": "11157845",
+      "patent_title": "Privacy-preserving collaborative machine learning",
+      "patent_abstract": "A framework applies differential privacy in collaborative model optimization.",
+      "patent_date": "2021-10-26",
+      "application": {"filing_date": "2018-06-03"},
+      "assignees": [{"assignee_organization": "IBM Corporation"}],
+      "cpc_at_issue": [{"cpc_subclass_id": "G06F"}],
+      "inventors": [{"inventor_name_first": "Bob", "inventor_name_last": "Lee"}]
+    }
+  ]
+}
