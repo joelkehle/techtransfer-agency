@@ -72,6 +72,26 @@ go run ./cmd/patent-extractor --bus-url http://localhost:8080 --agent-id patent-
 
 Details: `docs/PATENT_ELIGIBILITY_SCREEN_SPEC.md`
 
+### Prior Art Search Agent
+
+Run the standalone prior art search agent:
+
+```bash
+export PRIOR_ART_AGENT_SECRET=replace-with-strong-secret
+export ANTHROPIC_API_KEY=replace-with-api-key
+export PATENTSVIEW_API_KEY=replace-with-api-key
+go run ./cmd/prior-art-search --bus-url http://localhost:8080 --agent-id prior-art-search
+```
+
+For operator-driven submissions (`workflow=prior-art-search`) with PDF attachments, run the extractor route too:
+
+```bash
+export PRIOR_ART_EXTRACTOR_AGENT_SECRET=replace-with-strong-secret
+go run ./cmd/patent-extractor --bus-url http://localhost:8080 --agent-id prior-art-extractor --capability prior-art-search --secret-env PRIOR_ART_EXTRACTOR_AGENT_SECRET --next-agent-id prior-art-search
+```
+
+Details: `docs/PRIOR_ART_SEARCH_SPEC_v3.2.md`
+
 ### Runtime Options
 
 - `STORE_BACKEND`:
@@ -108,6 +128,8 @@ make gate
 - `docs/PROTOCOL_SPEC_v2.md`
 - `docs/NORMATIVE_CLARIFICATIONS.md`
 - `docs/PATENT_ELIGIBILITY_SCREEN_SPEC.md`
+- `docs/PRIOR_ART_SEARCH_SPEC_v3.2.md`
+- `docs/PRIOR_ART_SEARCH_IMPLEMENTATION_PROMPT.md` (implementation history)
 
 ## License
 
