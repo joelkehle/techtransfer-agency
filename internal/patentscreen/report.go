@@ -3,8 +3,8 @@ package patentscreen
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
-	"time"
 )
 
 // USPTO / legal reference URLs used in the report markdown.
@@ -21,6 +21,8 @@ const (
 	usc102URL         = "https://www.law.cornell.edu/uscode/text/35/102"
 	usc103URL         = "https://www.law.cornell.edu/uscode/text/35/103"
 )
+
+var uclaCaseIDPattern = regexp.MustCompile(`^\d{4}-\d{3}$`)
 
 func BuildResponse(result PipelineResult) ResponseEnvelope {
 	env := ResponseEnvelope{
@@ -45,26 +47,47 @@ func BuildResponse(result PipelineResult) ResponseEnvelope {
 	if result.Stage5 != nil {
 		env.StageOutputs["stage_5"] = result.Stage5
 	}
-	env.ReportMarkdown = buildMarkdown(result, env.StageOutputs)
+	env.ReportMarkdown = buildMarkdown(result)
 	return env
 }
 
-func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
+func buildMarkdown(result PipelineResult) string {
 	var b strings.Builder
-	mode := "COMPLETE"
-	if result.Metadata.InputTruncated || len(result.Metadata.NeedsReviewReasons) > 0 {
-		mode = "DEGRADED"
+	humanReviewRequired := result.Metadata.InputTruncated || len(result.Metadata.NeedsReviewReasons) > 0
+	reviewStatus := "Complete"
+	if humanReviewRequired {
+		reviewStatus = "Human review required"
 	}
 
 	fmt.Fprintf(&b, "# Patent Eligibility Screen Report\n\n")
-	fmt.Fprintf(&b, "- Reference: %s\n", result.Request.CaseID)
-	fmt.Fprintf(&b, "- Invention: %s\n", sanitizeLine(result.Stage1.InventionTitle))
-	fmt.Fprintf(&b, "- Date: %s\n", time.Now().Format(time.RFC3339))
-	fmt.Fprintf(&b, "- Mode: %s\n\n", mode)
 	fmt.Fprintf(&b, "%s\n\n", Disclaimer)
-	if mode == "DEGRADED" {
-		fmt.Fprintf(&b, "> DEGRADED: This report includes low-confidence or insufficient-information flags. Human review is required before acting.\n\n")
+
+	fmt.Fprintf(&b, "## Executive Summary\n\n")
+	fmt.Fprintf(&b, "Overall determination: **%s**.\n", result.FinalDetermination)
+	fmt.Fprintf(&b, "%s\n", pathwayExplanation(string(result.Pathway)))
+	fmt.Fprintf(&b, "Review status: **%s**.\n", reviewStatus)
+	if humanReviewRequired {
+		fmt.Fprintf(&b, "Human review is required before acting because this report includes low-confidence or insufficient-information flags.\n")
+		if result.Metadata.InputTruncated {
+			fmt.Fprintf(&b, "Input was truncated to fit processing limits.\n")
+		}
 	}
+	if len(result.Metadata.NeedsReviewReasons) > 0 {
+		fmt.Fprintf(&b, "Confidence override applied due to: %s.\n", strings.Join(result.Metadata.NeedsReviewReasons, "; "))
+	}
+	b.WriteString("\n")
+
+	// --- Decision path snapshot ---
+	fmt.Fprintf(&b, "## Decision Path (At a Glance)\n\n")
+	fmt.Fprintf(&b, "| Stage | Eligibility Question | Outcome |\n")
+	fmt.Fprintf(&b, "|---|---|---|\n")
+	fmt.Fprintf(&b, "| 2 | Does the invention fall within a statutory category? | %s |\n", decisionOutcomeStage2(result))
+	fmt.Fprintf(&b, "| 3 | Does the invention recite a judicial exception? | %s |\n", decisionOutcomeStage3(result))
+	fmt.Fprintf(&b, "| 4 | Does the invention integrate the exception into a practical application? | %s |\n", decisionOutcomeStage4(result))
+	fmt.Fprintf(&b, "| 5 | Do the additional elements amount to significantly more than the judicial exception? | %s |\n\n", decisionOutcomeStage5(result))
+
+	// --- Recommended Next Steps (summary placement) ---
+	writeRecommendedNextSteps(&b, result)
 
 	// --- Framework explainer ---
 	fmt.Fprintf(&b, "## How This Report Works\n\n")
@@ -78,14 +101,6 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 		"because the eligibility question has already been resolved. When a stage is marked "+
 		"\"Skipped,\" it means a prior stage already answered the eligibility question — the "+
 		"explanation for why is provided inline.\n\n")
-
-	fmt.Fprintf(&b, "## Executive Summary\n\n")
-	fmt.Fprintf(&b, "Overall determination: **%s**.\n", result.FinalDetermination)
-	fmt.Fprintf(&b, "%s\n", pathwayExplanation(string(result.Pathway)))
-	if len(result.Metadata.NeedsReviewReasons) > 0 {
-		fmt.Fprintf(&b, "Confidence override applied due to: %s.\n", strings.Join(result.Metadata.NeedsReviewReasons, "; "))
-	}
-	b.WriteString("\n")
 
 	// --- Stage 1: Extraction ---
 	fmt.Fprintf(&b, "---\n\n## Stage 1: Invention Extraction\n\n")
@@ -310,25 +325,6 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 		fmt.Fprintf(&b, "> [!] Insufficient information flagged.\n")
 	}
 
-	// --- Recommended Next Steps ---
-	fmt.Fprintf(&b, "\n---\n\n## Recommended Next Steps\n\n")
-	switch result.FinalDetermination {
-	case DeterminationLikelyEligible:
-		fmt.Fprintf(&b, "Your invention appears to be eligible for patent protection. The next step is a "+
-			"**prior art search** to determine whether it is novel and non-obvious compared to existing "+
-			"patents and publications, followed by a formal **patentability opinion** from patent counsel.\n")
-	case DeterminationLikelyNotEligible:
-		fmt.Fprintf(&b, "The analysis identified potential [§ 101](%s) eligibility concerns. This does **not** "+
-			"mean your invention is unpatentable — these issues are often resolved through claim drafting. "+
-			"We recommend reviewing the specific stages flagged above with patent counsel before "+
-			"investing in a prior art search.\n", usc101URL)
-	default:
-		fmt.Fprintf(&b, "The automated screen could not make a confident determination. We recommend "+
-			"human review of the specific stages flagged above. The low-confidence areas are noted "+
-			"with [!] markers throughout the report.\n")
-	}
-	b.WriteString("\n")
-
 	// --- Appendix ---
 	fmt.Fprintf(&b, "---\n\n## Appendix\n\n")
 
@@ -342,16 +338,10 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 	fmt.Fprintf(&b, "| Judicial exception | An abstract idea, law of nature, or natural phenomenon that cannot be patented by itself |\n")
 	fmt.Fprintf(&b, "| Practical application | Using an abstract idea in a specific, concrete way that goes beyond the idea itself |\n")
 	fmt.Fprintf(&b, "| Inventive concept | An element that transforms an abstract idea into something significantly more than the idea alone |\n")
-	fmt.Fprintf(&b, "| [Berkheimer Memo](%s) | USPTO guidance requiring evidence for any finding that claim elements are well-understood, routine, and conventional |\n", berkheimerMemoURL)
+	fmt.Fprintf(&b, "| [Berkheimer Memo](%s) | USPTO guidance requiring evidence for any finding that claim elements are well-understood, routine, and conventional (WURC) |\n", berkheimerMemoURL)
 	fmt.Fprintf(&b, "| Well-understood, routine, and conventional (WURC) | Claim elements that examiners assert are standard in the field and, under Berkheimer, must be supported by evidence |\n")
 	fmt.Fprintf(&b, "| Statutory category | The four § 101 categories: process, machine, manufacture, or composition of matter |\n")
 	fmt.Fprintf(&b, "| Prior art | Existing patents, publications, or public knowledge that an invention is compared against |\n\n")
-
-	fmt.Fprintf(&b, "### Stage Outputs (JSON)\n\n```json\n%s\n```\n", prettyJSON(stageOutputs))
-	fmt.Fprintf(&b, "\n### Pipeline Metadata (JSON)\n\n```json\n%s\n```\n", prettyJSON(result.Metadata))
-	if len(result.Metadata.DecisionTrace) > 0 {
-		fmt.Fprintf(&b, "\n### Decision Trace (JSON)\n\n```json\n%s\n```\n", prettyJSON(result.Metadata.DecisionTrace))
-	}
 
 	return b.String()
 }
@@ -472,6 +462,99 @@ func pathwayExplanation(pathway string) string {
 		return "The invention involves a judicial exception, does not integrate it into a practical application, and lacks an inventive concept beyond routine or conventional use of the abstract idea."
 	default:
 		return ""
+	}
+}
+
+func caseReferenceLabel(caseID string) string {
+	id := strings.TrimSpace(caseID)
+	if id == "" {
+		return "-"
+	}
+	if uclaCaseIDPattern.MatchString(id) {
+		return "UCLA Case #" + id
+	}
+	return id
+}
+
+func decisionOutcomeStage2(result PipelineResult) string {
+	if result.Stage2 == nil {
+		return "Not evaluated"
+	}
+	if result.Stage2.PassesStep1 {
+		return "Yes"
+	}
+	return "No — analysis ended"
+}
+
+func decisionOutcomeStage3(result PipelineResult) string {
+	if result.Stage3 == nil {
+		if result.Pathway == PathwayA {
+			return "Skipped — Stage 2 answered No"
+		}
+		return "Skipped"
+	}
+	if result.Stage3.RecitesException {
+		return "Yes"
+	}
+	return "No — analysis ended"
+}
+
+func decisionOutcomeStage4(result PipelineResult) string {
+	if result.Stage4 == nil {
+		switch result.Pathway {
+		case PathwayA:
+			return "Skipped — Stage 2 answered No"
+		case PathwayB1:
+			return "Skipped — Stage 3 answered No"
+		default:
+			return "Skipped"
+		}
+	}
+	if result.Stage4.IntegratesPracticalApplication {
+		return "Yes"
+	}
+	return "No"
+}
+
+func decisionOutcomeStage5(result PipelineResult) string {
+	if result.Stage5 == nil {
+		switch result.Pathway {
+		case PathwayA:
+			return "Skipped — Stage 2 answered No"
+		case PathwayB1:
+			return "Skipped — Stage 3 answered No"
+		case PathwayB2:
+			return "Skipped — Stage 4 answered Yes"
+		default:
+			return "Skipped"
+		}
+	}
+	outcome := "No"
+	if result.Stage5.HasInventiveConcept {
+		outcome = "Yes"
+	}
+	if result.Metadata.Stage5BooleanAgreement != nil && !*result.Metadata.Stage5BooleanAgreement {
+		return outcome + " — verification disagreement (review required)"
+	}
+	return outcome
+}
+
+func writeRecommendedNextSteps(b *strings.Builder, result PipelineResult) {
+	fmt.Fprintf(b, "## Recommended Next Steps\n\n")
+	switch result.FinalDetermination {
+	case DeterminationLikelyEligible:
+		fmt.Fprintf(b, "Your invention appears to be eligible for patent protection. The next step is a "+
+			"**prior art search** to determine whether it is novel and non-obvious compared to existing "+
+			"patents and publications, followed by a formal **patentability opinion** from patent counsel.\n\n")
+	case DeterminationLikelyNotEligible:
+		fmt.Fprintf(b, "The analysis identified potential [§ 101](%s) eligibility concerns. This does **not** "+
+			"mean your invention is unpatentable — these issues are often resolved through claim drafting. "+
+			"We recommend reviewing the specific stages flagged above with patent counsel before "+
+			"investing in a prior art search.\n\n", usc101URL)
+	default:
+		fmt.Fprintf(b, "The automated screen could not make a confident determination. We recommend "+
+			"human review of the specific stages flagged above. The low-confidence areas are noted "+
+			"with [!] markers throughout the report.\n\n")
 	}
 }
 

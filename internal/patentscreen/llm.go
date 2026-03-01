@@ -54,11 +54,19 @@ func defaultAnthropicCreator(apiKey string) AnthropicMessager {
 var newAnthropicClient AnthropicClientCreator = defaultAnthropicCreator
 
 func NewAnthropicCallerFromEnv() (*AnthropicCaller, error) {
+	if envEnabled("PATENT_SCREEN_NO_LLM") {
+		return nil, errors.New("PATENT_SCREEN_NO_LLM is enabled; refusing to initialize Anthropic caller")
+	}
 	apiKey := strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY"))
 	if apiKey == "" {
 		return nil, errors.New("ANTHROPIC_API_KEY not configured")
 	}
 	return &AnthropicCaller{messages: newAnthropicClient(apiKey)}, nil
+}
+
+func envEnabled(key string) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
 func (a *AnthropicCaller) GenerateJSON(ctx context.Context, prompt string) (string, error) {
