@@ -87,6 +87,8 @@ func (s *Searcher) Run(ctx context.Context, stage1 Stage1Output) (Stage2Output, 
 		if err := s.waitRateLimit(ctx); err != nil {
 			return out, err
 		}
+		queryStart := time.Now()
+		log.Printf("prior-art-search query_start id=%s strategy=%s", q.ID, q.StrategyID)
 		resp, statusCode, attempts, err := s.executeWithRetry(ctx, q.Body)
 		out.TotalAPICalls += attempts
 		if err != nil {
@@ -100,12 +102,13 @@ func (s *Searcher) Run(ctx context.Context, stage1 Stage1Output) (Stage2Output, 
 					return out, errors.New("Multiple PatentsView query failures — likely a query builder bug. Check logs")
 				}
 			}
-			log.Printf("prior-art-search query failed id=%s status=%d err=%v", q.ID, statusCode, err)
+			log.Printf("prior-art-search query_error id=%s strategy=%s status=%d attempts=%d elapsed_ms=%d err=%q", q.ID, q.StrategyID, statusCode, attempts, time.Since(queryStart).Milliseconds(), err.Error())
 			continue
 		}
 
 		out.QueriesExecuted++
 		out.TotalHitsByQuery[q.ID] = resp.TotalHits
+		log.Printf("prior-art-search query_done id=%s strategy=%s status=%d attempts=%d elapsed_ms=%d total_hits=%d returned=%d", q.ID, q.StrategyID, statusCode, attempts, time.Since(queryStart).Milliseconds(), resp.TotalHits, len(resp.Patents))
 		if strings.HasSuffix(q.ID, "_broad") && resp.TotalHits > 10000 {
 			log.Printf("prior-art-search warning broad query id=%s total_hits=%d", q.ID, resp.TotalHits)
 		}
@@ -195,6 +198,7 @@ func (s *Searcher) executeWithRetry(ctx context.Context, body map[string]any) (p
 			if sleep <= 0 {
 				sleep = backoffDelay(attempt)
 			}
+			log.Printf("prior-art-search query_retry reason=rate_limit status=%d attempt=%d sleep_ms=%d", code, attempt, sleep.Milliseconds())
 			if err := sleepCtx(ctx, sleep); err != nil {
 				return patentAPIResponse{}, statusCode, attempts, err
 			}
@@ -210,6 +214,7 @@ func (s *Searcher) executeWithRetry(ctx context.Context, body map[string]any) (p
 			if attempt == 4 {
 				break
 			}
+			log.Printf("prior-art-search query_retry reason=server_or_timeout status=%d attempt=%d sleep_ms=%d", code, attempt, backoffDelay(attempt).Milliseconds())
 			if err := sleepCtx(ctx, backoffDelay(attempt)); err != nil {
 				return patentAPIResponse{}, statusCode, attempts, err
 			}

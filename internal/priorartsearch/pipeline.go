@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -50,26 +51,37 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 	res.Request = req
 
 	emit(progress, "stage_1", "Stage 1: Building search strategy...")
+	stageStart := time.Now()
+	log.Printf("prior-art-search stage_start stage=stage_1 case_id=%s", req.CaseID)
 	s1, m1, err := p.runner.RunStage1(ctx, req)
 	if err != nil {
+		log.Printf("prior-art-search stage_error stage=stage_1 case_id=%s elapsed_ms=%d err=%q", req.CaseID, time.Since(stageStart).Milliseconds(), err.Error())
 		return res, &StageError{Stage: "stage_1", Err: err}
 	}
+	log.Printf("prior-art-search stage_done stage=stage_1 case_id=%s elapsed_ms=%d", req.CaseID, time.Since(stageStart).Milliseconds())
 	res.Stage1 = s1
 	res.Attempts["stage_1"] = m1
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_1")
 
 	emit(progress, "stage_2", "Stage 2: Executing PatentsView search...")
+	stageStart = time.Now()
+	log.Printf("prior-art-search stage_start stage=stage_2 case_id=%s", req.CaseID)
 	s2, err := p.searcher.Run(ctx, s1)
 	if err != nil {
+		log.Printf("prior-art-search stage_error stage=stage_2 case_id=%s elapsed_ms=%d err=%q", req.CaseID, time.Since(stageStart).Milliseconds(), err.Error())
 		return res, &StageError{Stage: "stage_2", Err: err}
 	}
+	log.Printf("prior-art-search stage_done stage=stage_2 case_id=%s elapsed_ms=%d queries_executed=%d queries_failed=%d patents=%d", req.CaseID, time.Since(stageStart).Milliseconds(), s2.QueriesExecuted, s2.QueriesFailed, len(s2.Patents))
 	res.Stage2 = s2
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_2")
 
 	emit(progress, "stage_3", "Stage 3: Assessing relevance...")
+	stageStart = time.Now()
+	log.Printf("prior-art-search stage_start stage=stage_3 case_id=%s", req.CaseID)
 	s3, s3Meta, m3, err := p.runner.RunStage3(ctx, s1, s2)
 	res.Attempts["stage_3"] = m3
 	if err != nil {
+		log.Printf("prior-art-search stage_error stage=stage_3 case_id=%s elapsed_ms=%d err=%q", req.CaseID, time.Since(stageStart).Milliseconds(), err.Error())
 		reason := "Stage 3 failed. Report generated in degraded mode with raw results only."
 		res.Metadata.Degraded = true
 		res.Metadata.DegradedReason = &reason
@@ -85,10 +97,13 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 		finalizeMetadata(&res, s3Meta)
 		return res, nil
 	}
+	log.Printf("prior-art-search stage_done stage=stage_3 case_id=%s elapsed_ms=%d assessments=%d", req.CaseID, time.Since(stageStart).Milliseconds(), len(s3.Assessments))
 	res.Stage3 = &s3
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_3")
 
 	emit(progress, "stage_4", "Stage 4: Building landscape analysis...")
+	stageStart = time.Now()
+	log.Printf("prior-art-search stage_start stage=stage_4 case_id=%s", req.CaseID)
 	s4, m4, err := p.runner.RunStage4(ctx, s1, s2, s3)
 	res.Attempts["stage_4"] = m4
 	stats := computeLandscapeStats(s1, s2, s3)
@@ -96,6 +111,7 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 	res.CPCHistogram = stats.CPCHistogram
 	res.NovelCoverage = stats.NovelCoverage
 	if err != nil {
+		log.Printf("prior-art-search stage_error stage=stage_4 case_id=%s elapsed_ms=%d err=%q", req.CaseID, time.Since(stageStart).Milliseconds(), err.Error())
 		reason := "Stage 4 failed. Report generated in degraded mode with code-generated landscape statistics."
 		res.Metadata.Degraded = true
 		res.Metadata.DegradedReason = &reason
@@ -106,6 +122,7 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 		finalizeMetadata(&res, s3Meta)
 		return res, nil
 	}
+	log.Printf("prior-art-search stage_done stage=stage_4 case_id=%s elapsed_ms=%d determination=%s", req.CaseID, time.Since(stageStart).Milliseconds(), s4.Determination)
 	res.Stage4 = &s4
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_4")
 	res.Determination = s4.Determination

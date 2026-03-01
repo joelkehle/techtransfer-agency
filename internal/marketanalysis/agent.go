@@ -34,17 +34,13 @@ func (a *Agent) Run(ctx context.Context) error {
 	if err := a.register(ctx); err != nil {
 		return err
 	}
-	heartbeat := time.NewTicker(60 * time.Second)
-	defer heartbeat.Stop()
+	log.Printf("%s registered capability=%s", a.cfg.AgentID, CapabilityMarketAnalysis)
+	go a.heartbeatLoop(ctx, 60*time.Second)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-heartbeat.C:
-			if err := a.register(ctx); err != nil {
-				log.Printf("market-analysis heartbeat register failed: %v", err)
-			}
 		default:
 			events, next, err := a.client.PollInbox(ctx, a.cfg.AgentID, a.cfg.Secret, a.cursor, a.cfg.PollWaitSec)
 			if err != nil {
@@ -54,9 +50,29 @@ func (a *Agent) Run(ctx context.Context) error {
 			}
 			a.cursor = next
 			for _, evt := range events {
-				if err := a.handleEvent(ctx, evt); err != nil {
-					log.Printf("market-analysis handle event failed: %v", err)
-				}
+				log.Printf("%s received message_id=%s from=%s conversation=%s", a.cfg.AgentID, evt.MessageID, evt.From, evt.ConversationID)
+				go func(ev InboxEvent) {
+					if err := a.handleEvent(ctx, ev); err != nil {
+						log.Printf("market-analysis handle event failed: %v", err)
+					}
+				}(evt)
+			}
+		}
+	}
+}
+
+func (a *Agent) heartbeatLoop(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := a.register(ctx); err != nil {
+				log.Printf("market-analysis heartbeat register failed: %v", err)
+			} else {
+				log.Printf("%s heartbeat renewed capability=%s", a.cfg.AgentID, CapabilityMarketAnalysis)
 			}
 		}
 	}

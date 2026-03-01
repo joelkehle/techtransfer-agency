@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"regexp"
@@ -111,9 +112,12 @@ func (e *StageExecutor) Run(ctx context.Context, stageName, prompt string, out a
 			fullPrompt += "\n\n" + feedback
 		}
 
+		attemptStart := time.Now()
+		log.Printf("prior-art-search llm_attempt_start stage=%s attempt=%d", stageName, attempt)
 		raw, err := e.caller.GenerateJSON(ctx, fullPrompt)
 		if err != nil {
 			class := classifyTransportError(err)
+			log.Printf("prior-art-search llm_attempt_transport_error stage=%s attempt=%d class=%d elapsed_ms=%d err=%q", stageName, attempt, class, time.Since(attemptStart).Milliseconds(), err.Error())
 			if class == failureTimeout || class == failureRateLimit || class == failureServer {
 				if attempt < 3 {
 					time.Sleep(backoffDelay(attempt))
@@ -124,6 +128,7 @@ func (e *StageExecutor) Run(ctx context.Context, stageName, prompt string, out a
 		}
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
+			log.Printf("prior-art-search llm_attempt_empty stage=%s attempt=%d elapsed_ms=%d", stageName, attempt, time.Since(attemptStart).Milliseconds())
 			if attempt < 3 {
 				metrics.ContentRetries++
 				feedback = "Your previous response was empty. Return valid JSON only."
@@ -134,6 +139,7 @@ func (e *StageExecutor) Run(ctx context.Context, stageName, prompt string, out a
 
 		clean := stripCodeFences(raw)
 		if err := json.Unmarshal([]byte(clean), out); err != nil {
+			log.Printf("prior-art-search llm_attempt_json_error stage=%s attempt=%d elapsed_ms=%d err=%q", stageName, attempt, time.Since(attemptStart).Milliseconds(), err.Error())
 			if attempt < 3 {
 				metrics.ContentRetries++
 				feedback = "Your previous response was not valid JSON. Return valid JSON only."
@@ -142,6 +148,7 @@ func (e *StageExecutor) Run(ctx context.Context, stageName, prompt string, out a
 			return metrics, fmt.Errorf("%s failed json parse: %w", stageName, err)
 		}
 		if err := validate(); err != nil {
+			log.Printf("prior-art-search llm_attempt_validation_error stage=%s attempt=%d elapsed_ms=%d err=%q", stageName, attempt, time.Since(attemptStart).Milliseconds(), err.Error())
 			if attempt < 3 {
 				metrics.ContentRetries++
 				feedback = fmt.Sprintf("Your response failed validation: %s. Fix and return valid JSON only.", err)
@@ -149,6 +156,7 @@ func (e *StageExecutor) Run(ctx context.Context, stageName, prompt string, out a
 			}
 			return metrics, fmt.Errorf("%s failed validation: %w", stageName, err)
 		}
+		log.Printf("prior-art-search llm_attempt_success stage=%s attempt=%d elapsed_ms=%d response_chars=%d", stageName, attempt, time.Since(attemptStart).Milliseconds(), len(clean))
 		return metrics, nil
 	}
 	return metrics, fmt.Errorf("%s failed after retries", stageName)

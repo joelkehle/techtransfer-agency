@@ -76,6 +76,7 @@ func (a *Agent) register(ctx context.Context) error {
 }
 
 func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
+	started := time.Now()
 	if err := a.client.Ack(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "accepted", "processing prior art search"); err != nil {
 		return err
 	}
@@ -85,12 +86,28 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 		_ = a.sendError(ctx, evt, "invalid request envelope")
 		return err
 	}
+	log.Printf(
+		"prior-art-search request_start message_id=%s conversation_id=%s case_id=%s disclosure_chars=%d",
+		evt.MessageID,
+		evt.ConversationID,
+		req.CaseID,
+		len(req.DisclosureText),
+	)
 
 	result, runErr := a.pipeline.RunWithProgress(ctx, req, func(stage, message string) {
 		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "progress", message, map[string]any{"stage": stage})
 	})
 	if runErr != nil {
 		stage := StageNameFromError(runErr)
+		log.Printf(
+			"prior-art-search request_error message_id=%s conversation_id=%s case_id=%s stage=%s elapsed_ms=%d err=%q",
+			evt.MessageID,
+			evt.ConversationID,
+			req.CaseID,
+			stage,
+			time.Since(started).Milliseconds(),
+			runErr.Error(),
+		)
 		_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "error", runErr.Error(), map[string]any{"stage": stage})
 		_ = a.sendError(ctx, evt, runErr.Error())
 		return runErr
@@ -118,6 +135,15 @@ func (a *Agent) handleEvent(ctx context.Context, evt InboxEvent) error {
 		_ = a.sendError(ctx, evt, "failed to send response")
 		return err
 	}
+	log.Printf(
+		"prior-art-search request_done message_id=%s conversation_id=%s case_id=%s determination=%s degraded=%t elapsed_ms=%d",
+		evt.MessageID,
+		evt.ConversationID,
+		req.CaseID,
+		result.Determination,
+		result.Metadata.Degraded,
+		time.Since(started).Milliseconds(),
+	)
 	_ = a.client.Event(ctx, a.cfg.AgentID, a.cfg.Secret, evt.MessageID, "final", string(result.Determination), map[string]any{"degraded": result.Metadata.Degraded})
 	return nil
 }
