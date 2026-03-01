@@ -135,16 +135,43 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 
 	emit(progress, "stage_5", "Stage 5: Evaluating inventive concept (Step 2B)...")
 	stageStarted = time.Now()
-	s5, m5, err := p.runner.RunStage5(ctx, s1, s3, s4)
+	s5First, m5First, err := p.runner.RunStage5(ctx, s1, s3, s4)
 	if err != nil {
 		return res, &StageError{Stage: "stage_5", Err: err}
 	}
+	s5Second, m5Second, secondErr := p.runner.RunStage5(ctx, s1, s3, s4)
 	emit(progress, "stage_5", fmt.Sprintf("Stage 5 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
-	res.Stage5 = &s5
-	res.Attempts["stage_5"] = m5
+	res.Stage5 = &s5First
+	res.Attempts["stage_5"] = StageAttemptMetrics{
+		Attempts:       m5First.Attempts + m5Second.Attempts,
+		ContentRetries: m5First.ContentRetries + m5Second.ContentRetries,
+	}
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_5")
+	if secondErr != nil {
+		if res.Metadata.DecisionTrace == nil {
+			res.Metadata.DecisionTrace = map[string]any{}
+		}
+		res.Metadata.DecisionTrace["stage_5"] = map[string]any{
+			"verification_error": secondErr.Error(),
+			"run_1":              s5First,
+		}
+	}
+	if secondErr == nil {
+		agreement := s5First.HasInventiveConcept == s5Second.HasInventiveConcept
+		res.Metadata.Stage5BooleanAgreement = &agreement
+		if !agreement {
+			if res.Metadata.DecisionTrace == nil {
+				res.Metadata.DecisionTrace = map[string]any{}
+			}
+			res.Metadata.DecisionTrace["stage_5"] = map[string]any{
+				"disagreement": true,
+				"run_1":        s5First,
+				"run_2":        s5Second,
+			}
+		}
+	}
 
-	if s5.HasInventiveConcept {
+	if s5First.HasInventiveConcept {
 		res.BaseDetermination = DeterminationLikelyEligible
 		res.Pathway = PathwayC
 	} else {
@@ -201,6 +228,14 @@ func computeNeedsReviewReasons(res PipelineResult) []string {
 	}
 	if res.Metadata.InputTruncated {
 		reasons = append(reasons, fmt.Sprintf("Input disclosure was truncated to %d characters", MaxDisclosureChars))
+	}
+	if res.Metadata.Stage5BooleanAgreement != nil && !*res.Metadata.Stage5BooleanAgreement {
+		reasons = append(reasons, "stage_5: verification disagreement between repeated boolean outputs")
+	}
+	if trace, ok := res.Metadata.DecisionTrace["stage_5"].(map[string]any); ok {
+		if errText, ok := trace["verification_error"].(string); ok && strings.TrimSpace(errText) != "" {
+			reasons = append(reasons, fmt.Sprintf("stage_5: verification retry failed (%s)", errText))
+		}
 	}
 	return reasons
 }

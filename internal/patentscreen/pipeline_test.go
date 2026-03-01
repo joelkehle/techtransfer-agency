@@ -7,14 +7,17 @@ import (
 )
 
 type mockRunner struct {
-	s1    Stage1Output
-	s2    Stage2Output
-	s3    Stage3Output
-	s4    Stage4Output
-	s5    Stage5Output
-	s6    Stage6Output
-	err   map[string]error
-	calls map[string]int
+	s1           Stage1Output
+	s2           Stage2Output
+	s3           Stage3Output
+	s4           Stage4Output
+	s5           Stage5Output
+	s5Seq        []Stage5Output
+	s6           Stage6Output
+	err          map[string]error
+	s5ErrSeq     []error
+	s5MetricsSeq []StageAttemptMetrics
+	calls        map[string]int
 }
 
 func (m *mockRunner) RunStage1(context.Context, RequestEnvelope) (Stage1Output, StageAttemptMetrics, error) {
@@ -35,7 +38,19 @@ func (m *mockRunner) RunStage4(context.Context, Stage1Output, Stage3Output) (Sta
 }
 func (m *mockRunner) RunStage5(context.Context, Stage1Output, Stage3Output, Stage4Output) (Stage5Output, StageAttemptMetrics, error) {
 	m.calls["stage_5"]++
-	return m.s5, StageAttemptMetrics{Attempts: 1}, m.err["stage_5"]
+	idx := m.calls["stage_5"] - 1
+	out := m.s5
+	if idx < len(m.s5Seq) {
+		out = m.s5Seq[idx]
+	}
+	metrics := StageAttemptMetrics{Attempts: 1}
+	if idx < len(m.s5MetricsSeq) {
+		metrics = m.s5MetricsSeq[idx]
+	}
+	if idx < len(m.s5ErrSeq) {
+		return out, metrics, m.s5ErrSeq[idx]
+	}
+	return out, metrics, m.err["stage_5"]
 }
 func (m *mockRunner) RunStage6(context.Context, Stage1Output) (Stage6Output, StageAttemptMetrics, error) {
 	m.calls["stage_6"]++
@@ -158,6 +173,66 @@ func TestPipelinePathwayD(t *testing.T) {
 	}
 	if res.Pathway != PathwayD || res.FinalDetermination != DeterminationLikelyNotEligible {
 		t.Fatalf("unexpected result: pathway=%s determination=%s", res.Pathway, res.FinalDetermination)
+	}
+}
+
+func TestPipelineStage5DisagreementForcesNeedsFurtherReview(t *testing.T) {
+	r := &mockRunner{
+		s1: baseStage1(),
+		s2: Stage2Output{
+			Categories:      []Stage2Category{CategoryProcess},
+			Explanation:     "fits",
+			PassesStep1:     true,
+			StageConfidence: StageConfidence{ConfidenceScore: 0.9, ConfidenceReason: "good", InsufficientInformation: false},
+		},
+		s3: Stage3Output{
+			RecitesException:        true,
+			ExceptionType:           ptrException(ExceptionAbstractIdea),
+			AbstractIdeaSubcategory: ptrSubcategory(SubcategoryMentalProcess),
+			Reasoning:               strings50(),
+			MPEPReference:           "MPEP 2106.04",
+			StageConfidence:         StageConfidence{ConfidenceScore: 0.9, ConfidenceReason: "good", InsufficientInformation: false},
+		},
+		s4: Stage4Output{
+			AdditionalElements:             []string{stringsLen(30)},
+			IntegratesPracticalApplication: false,
+			Reasoning:                      strings50(),
+			MPEPReference:                  "MPEP 2106.04(d)",
+			StageConfidence:                StageConfidence{ConfidenceScore: 0.9, ConfidenceReason: "good", InsufficientInformation: false},
+		},
+		s5Seq: []Stage5Output{
+			{HasInventiveConcept: true, Reasoning: strings50(), BerkheimerConsiderations: stringsLen(30), MPEPReference: "MPEP 2106.05", StageConfidence: StageConfidence{ConfidenceScore: 0.9, ConfidenceReason: "good", InsufficientInformation: false}},
+			{HasInventiveConcept: false, Reasoning: strings50(), BerkheimerConsiderations: stringsLen(30), MPEPReference: "MPEP 2106.05", StageConfidence: StageConfidence{ConfidenceScore: 0.9, ConfidenceReason: "good", InsufficientInformation: false}},
+		},
+		s6:    Stage6Output{PriorArtSearchPriority: PriorityHigh, Reasoning: strings50(), StageConfidence: StageConfidence{ConfidenceScore: 0.9, ConfidenceReason: "good", InsufficientInformation: false}},
+		err:   map[string]error{},
+		calls: map[string]int{},
+	}
+	res, err := NewPipeline(r).Run(context.Background(), baseRequest())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if res.Pathway != PathwayC {
+		t.Fatalf("expected base pathway to follow first pass (C), got %s", res.Pathway)
+	}
+	if res.FinalDetermination != DeterminationNeedsFurtherReview {
+		t.Fatalf("expected NEEDS_FURTHER_REVIEW, got %s", res.FinalDetermination)
+	}
+	if res.Metadata.Stage5BooleanAgreement == nil || *res.Metadata.Stage5BooleanAgreement {
+		t.Fatal("expected stage_5 boolean agreement=false")
+	}
+	trace, ok := res.Metadata.DecisionTrace["stage_5"].(map[string]any)
+	if !ok {
+		t.Fatal("expected stage_5 decision trace map")
+	}
+	if disagree, ok := trace["disagreement"].(bool); !ok || !disagree {
+		t.Fatal("expected disagreement=true in decision trace")
+	}
+	if r.calls["stage_5"] != 2 {
+		t.Fatalf("expected stage_5 called twice, got %d", r.calls["stage_5"])
+	}
+	if res.Attempts["stage_5"].Attempts != 2 {
+		t.Fatalf("expected stage_5 attempts aggregated to 2, got %d", res.Attempts["stage_5"].Attempts)
 	}
 }
 

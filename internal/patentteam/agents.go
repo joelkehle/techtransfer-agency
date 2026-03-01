@@ -151,6 +151,7 @@ func HandleExtractorMessage(ctx context.Context, client *Client, agentID, secret
 	var payload map[string]any
 	_ = json.Unmarshal([]byte(evt.Body), &payload)
 	caseID, _ := payload["case_id"].(string)
+	caseID = ResolveCaseID(caseID, extracted.Text)
 	forwardBody, _ := json.Marshal(map[string]any{
 		"case_id":           caseID,
 		"task":              "patent eligibility",

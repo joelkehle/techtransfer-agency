@@ -40,6 +40,7 @@ func NewServer(bridge *Bridge, store *SubmissionStore, webDir, uploadDir string)
 			// Prior Art & Patentability
 			"patent-screen":    {Capability: "patent-screen", Label: "Patent Eligibility Screen", Description: "Assess patentability of an invention disclosure"},
 			"prior-art-search": {Capability: "prior-art-search", Label: "Prior Art Search", Description: "Search USPTO, EPO, WIPO and academic literature for prior art"},
+			"prior-art":        {Capability: "prior-art", Label: "Prior Art Search", Description: "Search USPTO, EPO, WIPO and academic literature for prior art"},
 			"patent-opinion":   {Capability: "patent-opinion", Label: "Patentability Opinion", Description: "Formal patentability opinion and claim drafting guidance"},
 			// Technical Assessment
 			"technical-review":      {Capability: "technical-review", Label: "Technical Domain Review", Description: "Verify technical claims, assess feasibility and TRL"},
@@ -144,8 +145,14 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	for i := range workflows {
 		workflows[i] = strings.TrimSpace(workflows[i])
 	}
+	caseNumber := strings.TrimSpace(r.FormValue("case_number"))
 
-	caseID := fmt.Sprintf("SUB-%d", time.Now().UTC().UnixNano())
+	var caseID string
+	if caseNumber != "" {
+		caseID = caseNumber
+	} else {
+		caseID = fmt.Sprintf("SUB-%d", time.Now().UTC().UnixNano())
+	}
 
 	// Handle file upload.
 	var attachments []busclient.Attachment

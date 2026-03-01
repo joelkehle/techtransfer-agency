@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -15,6 +16,11 @@ import (
 const (
 	maxPDFBytes = 20 * 1024 * 1024
 	maxTextRun  = 24000
+)
+
+var (
+	caseNumberLabeledPattern = regexp.MustCompile(`(?i)\b(?:uc\s*)?case(?:\s*(?:no\.?|number|#))?\s*[:#-]?\s*([A-Za-z0-9]{2,12}-[A-Za-z0-9]{2,12})\b`)
+	caseNumberYearPattern    = regexp.MustCompile(`\b(20\d{2}-\d{2,6})\b`)
 )
 
 type ExtractionResult struct {
@@ -128,4 +134,36 @@ func AttachmentFilePath(att Attachment) (string, error) {
 		return att.URL, nil
 	}
 	return "", fmt.Errorf("unsupported attachment url scheme: %s", att.URL)
+}
+
+// ExtractCaseNumber finds a likely case number in extracted disclosure text.
+func ExtractCaseNumber(text string) string {
+	s := strings.TrimSpace(text)
+	if s == "" {
+		return ""
+	}
+	if len(s) > 8000 {
+		s = s[:8000]
+	}
+	if m := caseNumberLabeledPattern.FindStringSubmatch(s); len(m) == 2 {
+		return strings.TrimSpace(m[1])
+	}
+	if m := caseNumberYearPattern.FindStringSubmatch(s); len(m) == 2 {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
+}
+
+// ResolveCaseID keeps explicit external IDs, but upgrades SUB-generated IDs
+// using a case number detected in extracted PDF text.
+func ResolveCaseID(defaultCaseID, extractedText string) string {
+	base := strings.TrimSpace(defaultCaseID)
+	detected := ExtractCaseNumber(extractedText)
+	if detected == "" {
+		return base
+	}
+	if base == "" || strings.HasPrefix(strings.ToUpper(base), "SUB-") {
+		return detected
+	}
+	return base
 }

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -72,6 +74,21 @@ func TestHandleWorkflows(t *testing.T) {
 	if len(workflows) < 2 {
 		t.Fatalf("expected at least 2 workflows, got %d", len(workflows))
 	}
+
+	var foundPriorArt bool
+	for _, wf := range workflows {
+		entry, ok := wf.(map[string]any)
+		if !ok {
+			continue
+		}
+		if entry["capability"] == "prior-art" && entry["label"] == "Prior Art Search" {
+			foundPriorArt = true
+			break
+		}
+	}
+	if !foundPriorArt {
+		t.Fatal("expected prior-art capability to be listed as Prior Art Search")
+	}
 }
 
 func TestHandleWorkflowsMethodNotAllowed(t *testing.T) {
@@ -91,7 +108,7 @@ func TestHandleSubmitValid(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("workflows", "patent-screen,prior-art")
+	writer.WriteField("workflows", "patent-screen,prior-art-search")
 
 	fw, err := writer.CreateFormFile("file", "test.pdf")
 	if err != nil {
@@ -204,9 +221,80 @@ func TestHandleSubmitGeneratesCaseIDWhenMissing(t *testing.T) {
 	}
 }
 
+func TestSubmitWithCaseNumber(t *testing.T) {
+	handler, store, _ := setupServer(t)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("workflows", "patent-screen")
+	writer.WriteField("case_number", "2023-107")
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/submit", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	token, ok := resp["token"].(string)
+	if !ok || token == "" {
+		t.Fatal("expected non-empty token in response")
+	}
+
+	sub := store.Get(token)
+	if sub == nil {
+		t.Fatal("expected submission to be in store")
+	}
+	if sub.CaseID != "2023-107" {
+		t.Fatalf("expected case_id 2023-107, got %q", sub.CaseID)
+	}
+}
+
+func TestSubmitWithoutCaseNumber(t *testing.T) {
+	handler, store, _ := setupServer(t)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("workflows", "patent-screen")
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/submit", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	token, ok := resp["token"].(string)
+	if !ok || token == "" {
+		t.Fatal("expected non-empty token in response")
+	}
+
+	sub := store.Get(token)
+	if sub == nil {
+		t.Fatal("expected submission to be in store")
+	}
+	if !strings.HasPrefix(sub.CaseID, "SUB-") {
+		t.Fatalf("expected generated case_id with SUB- prefix, got %q", sub.CaseID)
+	}
+}
+
 func TestHandleStatusValid(t *testing.T) {
 	handler, store, _ := setupServer(t)
-	sub := store.Create("case-status", []string{"patent-screen", "prior-art"})
+	sub := store.Create("case-status", []string{"patent-screen", "prior-art-search"})
 	store.SetWorkflowIDs(sub.Token, "patent-screen", "conv-ps", "req-ps")
 
 	req := httptest.NewRequest(http.MethodGet, "/status/"+sub.Token, nil)
@@ -381,5 +469,35 @@ func TestHandleSubmitMethodNotAllowed(t *testing.T) {
 
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("expected 405, got %d", rr.Code)
+	}
+}
+
+func TestSubmitUIContractDoesNotReferenceRemovedCaseNumberField(t *testing.T) {
+	indexPath := filepath.Join("..", "..", "web", "index.html")
+	appPath := filepath.Join("..", "..", "web", "app.js")
+
+	indexBytes, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	appBytes, err := os.ReadFile(appPath)
+	if err != nil {
+		t.Fatalf("read app.js: %v", err)
+	}
+
+	index := string(indexBytes)
+	app := string(appBytes)
+
+	if strings.Contains(index, `id="case-number"`) {
+		t.Fatal("unexpected case-number input in submit UI")
+	}
+	if strings.Contains(app, "case-number") {
+		t.Fatal("app.js should not reference removed case-number input")
+	}
+	if !strings.Contains(app, `fetch("/submit"`) {
+		t.Fatal("expected submit fetch call in app.js")
+	}
+	if !strings.Contains(app, `formData.append("file", selectedFile)`) {
+		t.Fatal("expected file upload form data append in app.js")
 	}
 }

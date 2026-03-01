@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -57,7 +58,7 @@ func (b *Bridge) Submit(ctx context.Context, token, workflow, caseID string, att
 		return fmt.Errorf("no agents found for capability %q", workflow)
 	}
 
-	target := agents[0].AgentID
+	target := selectTargetAgent(workflow, agents)
 	conversationID := fmt.Sprintf("submission-%s-%s", token, workflow)
 	requestID := b.nextRequestID(workflow)
 
@@ -89,6 +90,25 @@ func (b *Bridge) Submit(ctx context.Context, token, workflow, caseID string, att
 	return nil
 }
 
+func selectTargetAgent(workflow string, agents []busclient.AgentInfo) string {
+	preferredByWorkflow := map[string]string{
+		"patent-screen":    "patent-extractor",
+		"market-analysis":  "market-extractor",
+		"prior-art":        "prior-art-extractor",
+		"prior-art-search": "prior-art-extractor",
+	}
+	preferred, ok := preferredByWorkflow[workflow]
+	if !ok {
+		return agents[0].AgentID
+	}
+	for _, agent := range agents {
+		if agent.AgentID == preferred {
+			return agent.AgentID
+		}
+	}
+	return agents[0].AgentID
+}
+
 // PollLoop runs the inbox poll loop, matching responses back to submissions.
 // It blocks until the context is cancelled.
 func (b *Bridge) PollLoop(ctx context.Context) {
@@ -108,8 +128,21 @@ func (b *Bridge) PollLoop(ctx context.Context) {
 func (b *Bridge) poll(ctx context.Context) {
 	events, next, err := b.client.PollInbox(ctx, b.agentID, b.secret, b.cursor, 0)
 	if err != nil {
-		log.Printf("operator poll error: %v", err)
-		return
+		if isUnauthorizedPollError(err) {
+			log.Printf("operator poll unauthorized; attempting re-register")
+			if regErr := b.Register(ctx); regErr != nil {
+				log.Printf("operator re-register failed after unauthorized poll: %v", regErr)
+				return
+			}
+			events, next, err = b.client.PollInbox(ctx, b.agentID, b.secret, b.cursor, 0)
+			if err != nil {
+				log.Printf("operator poll error after re-register: %v", err)
+				return
+			}
+		} else {
+			log.Printf("operator poll error: %v", err)
+			return
+		}
 	}
 	b.cursor = next
 
@@ -145,6 +178,14 @@ func isErrorResponse(meta any) bool {
 	}
 	status, _ := m["status"].(string)
 	return status == "error"
+}
+
+func isUnauthorizedPollError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "status=401") || strings.Contains(msg, "unauthorized")
 }
 
 // Heartbeat re-registers the agent periodically to keep it alive.

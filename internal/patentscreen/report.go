@@ -9,15 +9,17 @@ import (
 
 // USPTO / legal reference URLs used in the report markdown.
 const (
-	mpep2106URL      = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html"
-	mpep210603URL    = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_139db_e0"
-	mpep210604URL    = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_13c11_1cb"
-	mpep210604dURL   = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_2117e_1e5"
-	mpep210605URL    = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_21506_344"
-	mpepAliceMayoURL = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_139db_e0"
-	usc101URL        = "https://www.law.cornell.edu/uscode/text/35/101"
-	usc102URL        = "https://www.law.cornell.edu/uscode/text/35/102"
-	usc103URL        = "https://www.law.cornell.edu/uscode/text/35/103"
+	mpep2106URL       = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html"
+	mpep210603URL     = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_139db_e0"
+	mpep210604URL     = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_13c11_1cb"
+	mpep210604dURL    = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_2117e_1e5"
+	mpep210605URL     = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_21506_344"
+	mpepAliceMayoURL  = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_139db_e0"
+	berkheimerMemoURL = "https://www.uspto.gov/sites/default/files/documents/memo-berkheimer-20180419.pdf"
+	mpep210605dURL    = "https://www.uspto.gov/web/offices/pac/mpep/s2106.html#ch2100_d29a1b_21506_344"
+	usc101URL         = "https://www.law.cornell.edu/uscode/text/35/101"
+	usc102URL         = "https://www.law.cornell.edu/uscode/text/35/102"
+	usc103URL         = "https://www.law.cornell.edu/uscode/text/35/103"
 )
 
 func BuildResponse(result PipelineResult) ResponseEnvelope {
@@ -55,7 +57,7 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 	}
 
 	fmt.Fprintf(&b, "# Patent Eligibility Screen Report\n\n")
-	fmt.Fprintf(&b, "- Case ID: %s\n", result.Request.CaseID)
+	fmt.Fprintf(&b, "- Reference: %s\n", result.Request.CaseID)
 	fmt.Fprintf(&b, "- Invention: %s\n", sanitizeLine(result.Stage1.InventionTitle))
 	fmt.Fprintf(&b, "- Date: %s\n", time.Now().Format(time.RFC3339))
 	fmt.Fprintf(&b, "- Mode: %s\n\n", mode)
@@ -79,15 +81,11 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 
 	fmt.Fprintf(&b, "## Executive Summary\n\n")
 	fmt.Fprintf(&b, "Overall determination: **%s**.\n", result.FinalDetermination)
-	fmt.Fprintf(&b, "Pathway: **%s**.\n", result.Pathway)
+	fmt.Fprintf(&b, "%s\n", pathwayExplanation(string(result.Pathway)))
 	if len(result.Metadata.NeedsReviewReasons) > 0 {
 		fmt.Fprintf(&b, "Confidence override applied due to: %s.\n", strings.Join(result.Metadata.NeedsReviewReasons, "; "))
 	}
 	b.WriteString("\n")
-
-	fmt.Fprintf(&b, "## Determination\n\n")
-	fmt.Fprintf(&b, "- Result: `%s`\n", result.FinalDetermination)
-	fmt.Fprintf(&b, "- Pathway: `%s`\n\n", result.Pathway)
 
 	// --- Stage 1: Extraction ---
 	fmt.Fprintf(&b, "---\n\n## Stage 1: Invention Extraction\n\n")
@@ -154,10 +152,11 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 
 	// --- Stage 3: Judicial Exception ---
 	fmt.Fprintf(&b, "\n---\n\n## Stage 3: Judicial Exception\n\n")
-	fmt.Fprintf(&b, "Even if an invention fits a statutory category, the Supreme Court has ruled (in cases "+
-		"like [*Alice Corp. v. CLS Bank*](https://supreme.justia.com/cases/federal/us/573/208/) and "+
-		"[*Mayo Collaborative Services v. Prometheus*](https://supreme.justia.com/cases/federal/us/566/66/)) "+
-		"that certain categories of ideas cannot be patented by themselves: **abstract ideas** "+
+	fmt.Fprintf(&b, "The Supreme Court has long held that certain categories of ideas cannot be patented by themselves. "+
+		"The current framework for analyzing these exceptions was established in "+
+		"[*Mayo Collaborative Services v. Prometheus*](https://supreme.justia.com/cases/federal/us/566/66/) (2012) and "+
+		"[*Alice Corp. v. CLS Bank*](https://supreme.justia.com/cases/federal/us/573/208/) (2014). "+
+		"These categories include **abstract ideas** "+
 		"(e.g., mathematical formulas, mental processes, methods of organizing human activity), "+
 		"**laws of nature**, and **natural phenomena**. These are called \"judicial exceptions.\" "+
 		"This stage checks whether your invention's core concept falls into one of these categories. "+
@@ -254,6 +253,9 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 		"It asks whether the invention nonetheless has an \"inventive concept\" — something beyond "+
 		"routine or conventional use of the abstract idea — that makes it patent-eligible. "+
 		"See [MPEP § 2106.05](%s).\n\n", mpep210605URL)
+	fmt.Fprintf(&b, "The [Berkheimer Memo](%s) (April 2018) requires that any finding of well-understood, routine, or "+
+		"conventional activity must be supported by evidence — an examiner cannot simply assert it. "+
+		"See [MPEP § 2106.05(d)](%s).\n\n", berkheimerMemoURL, mpep210605dURL)
 	fmt.Fprintf(&b, "**Question**: Do the additional elements amount to significantly more than the judicial exception?\n\n")
 	if result.Stage5 == nil {
 		writeSkipExplanation(&b, "stage_5", result)
@@ -264,7 +266,8 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 			fmt.Fprintf(&b, "**Conclusion**: No — no inventive concept found.\n\n")
 		}
 		fmt.Fprintf(&b, "**Reasoning**: %s\n\n", sanitizeLine(result.Stage5.Reasoning))
-		fmt.Fprintf(&b, "**Berkheimer Considerations**: %s\n\n", sanitizeLine(result.Stage5.BerkheimerConsiderations))
+		fmt.Fprintf(&b, "**Berkheimer Considerations** ([Berkheimer Memo](%s), [MPEP § 2106.05(d)](%s)): %s\n\n",
+			berkheimerMemoURL, mpep210605dURL, sanitizeLine(result.Stage5.BerkheimerConsiderations))
 		fmt.Fprintf(&b, "**MPEP Reference**: [%s](%s)\n\n", sanitizeLine(result.Stage5.MPEPReference), mpep210605URL)
 		fmt.Fprintf(&b, "> Confidence: %.2f — %s\n", result.Stage5.ConfidenceScore, sanitizeLine(result.Stage5.ConfidenceReason))
 		if result.Stage5.InsufficientInformation {
@@ -339,10 +342,16 @@ func buildMarkdown(result PipelineResult, stageOutputs map[string]any) string {
 	fmt.Fprintf(&b, "| Judicial exception | An abstract idea, law of nature, or natural phenomenon that cannot be patented by itself |\n")
 	fmt.Fprintf(&b, "| Practical application | Using an abstract idea in a specific, concrete way that goes beyond the idea itself |\n")
 	fmt.Fprintf(&b, "| Inventive concept | An element that transforms an abstract idea into something significantly more than the idea alone |\n")
+	fmt.Fprintf(&b, "| [Berkheimer Memo](%s) | USPTO guidance requiring evidence for any finding that claim elements are well-understood, routine, and conventional |\n", berkheimerMemoURL)
+	fmt.Fprintf(&b, "| Well-understood, routine, and conventional (WURC) | Claim elements that examiners assert are standard in the field and, under Berkheimer, must be supported by evidence |\n")
+	fmt.Fprintf(&b, "| Statutory category | The four § 101 categories: process, machine, manufacture, or composition of matter |\n")
 	fmt.Fprintf(&b, "| Prior art | Existing patents, publications, or public knowledge that an invention is compared against |\n\n")
 
 	fmt.Fprintf(&b, "### Stage Outputs (JSON)\n\n```json\n%s\n```\n", prettyJSON(stageOutputs))
 	fmt.Fprintf(&b, "\n### Pipeline Metadata (JSON)\n\n```json\n%s\n```\n", prettyJSON(result.Metadata))
+	if len(result.Metadata.DecisionTrace) > 0 {
+		fmt.Fprintf(&b, "\n### Decision Trace (JSON)\n\n```json\n%s\n```\n", prettyJSON(result.Metadata.DecisionTrace))
+	}
 
 	return b.String()
 }
@@ -447,6 +456,23 @@ func categoriesList(v []Stage2Category) string {
 		out = append(out, string(c))
 	}
 	return strings.Join(out, ", ")
+}
+
+func pathwayExplanation(pathway string) string {
+	switch pathway {
+	case string(PathwayA):
+		return "The invention does not appear to fall within a patentable category (process, machine, manufacture, or composition of matter)."
+	case string(PathwayB1):
+		return "The invention falls within a patentable category and does not involve a judicial exception (abstract idea, law of nature, or natural phenomenon)."
+	case string(PathwayB2):
+		return "Although the invention involves a judicial exception, it integrates that exception into a practical application with real-world utility."
+	case string(PathwayC):
+		return "Although the invention involves a judicial exception that is not integrated into a practical application, the specific combination of elements provides an inventive concept that goes beyond routine or conventional use."
+	case string(PathwayD):
+		return "The invention involves a judicial exception, does not integrate it into a practical application, and lacks an inventive concept beyond routine or conventional use of the abstract idea."
+	default:
+		return ""
+	}
 }
 
 func (s *Stage3Output) ExceptionTypeString() string {

@@ -412,26 +412,26 @@
       .then(function (raw) {
         var title = getWorkflowLabel(workflow) + " Report";
         var markdown = raw;
-        var badges = [];
+        var badgeHTML = "";
 
         try {
           var parsed = JSON.parse(raw);
           if (parsed && parsed.report_markdown) {
             markdown = parsed.report_markdown;
-            if (parsed.determination) badges.push(parsed.determination);
-            if (parsed.pathway) badges.push(parsed.pathway);
-            if (parsed.recommendation) badges.push(parsed.recommendation);
-            if (parsed.recommendation_confidence) badges.push(parsed.recommendation_confidence);
-            if (parsed.report_mode) badges.push(parsed.report_mode);
+            if (parsed.determination) {
+              badgeHTML += '<span class="report-badge">' + escapeHtml(String(parsed.determination)) + "</span>";
+            }
+            if (parsed.stage_outputs && parsed.stage_outputs.stage_6) {
+              var priority = parsed.stage_outputs.stage_6.prior_art_search_priority;
+              if (priority) {
+                badgeHTML += '<span class="report-badge">Prior Art Priority: ' + escapeHtml(String(priority)) + "</span>";
+              }
+            }
           }
         } catch (e) {}
 
         reportTitle.textContent = title;
-        reportBadges.innerHTML = badges
-          .map(function (b) {
-            return '<span class="report-badge">' + escapeHtml(String(b)) + "</span>";
-          })
-          .join("");
+        reportBadges.innerHTML = badgeHTML;
         reportHtml.innerHTML = markdownToHtml(markdown);
         reportViewer.hidden = false;
         reportViewer.scrollIntoView({ behavior: "smooth", block: "start" });

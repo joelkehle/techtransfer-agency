@@ -101,6 +101,27 @@ Details: `docs/PRIOR_ART_SEARCH_SPEC_v3.2.md`
 - `AGENT_ALLOWLIST`: optional comma-separated allowed agent IDs
 - `HUMAN_ALLOWLIST`: optional comma-separated allowed human injection identities
 
+### Local Deploy Notes
+
+- Prefer Docker Compose v2 (`docker compose`) over legacy `docker-compose` v1.
+- If `docker compose` is missing, install the plugin for your user:
+
+```bash
+mkdir -p ~/.docker/cli-plugins
+curl -fsSL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 \
+  -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+docker compose version
+```
+
+- To redeploy patent-screen pipeline services without restarting `bus`:
+
+```bash
+make redeploy-patent-screen
+```
+
+This rebuilds and restarts only `operator`, `patent-extractor`, and `patent-screen`.
+
 ### Authentication
 
 - Register with `secret` in `POST /v1/agents/register`.

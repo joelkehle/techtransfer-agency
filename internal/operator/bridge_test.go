@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+
+	"github.com/joelkehle/techtransfer-agency/internal/busclient"
 )
 
 func TestDiscoverWorkflows(t *testing.T) {
@@ -93,6 +95,53 @@ func TestSubmitSendsMessageAndSetsIDs(t *testing.T) {
 	expectedConvID := "submission-" + sub.Token + "-patent-screen"
 	if ws.ConversationID != expectedConvID {
 		t.Fatalf("expected conversation_id=%s, got %s", expectedConvID, ws.ConversationID)
+	}
+}
+
+func TestSubmitPriorArtSearchPrefersExtractor(t *testing.T) {
+	var receivedBody map[string]any
+	bus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/agents":
+			json.NewEncoder(w).Encode(map[string]any{
+				"agents": []map[string]any{
+					{"agent_id": "prior-art-search", "capabilities": []string{"prior-art-search"}, "status": "active"},
+					{"agent_id": "prior-art-extractor", "capabilities": []string{"prior-art-search"}, "status": "active"},
+				},
+			})
+		case "/v1/messages":
+			var body map[string]any
+			json.NewDecoder(r.Body).Decode(&body)
+			receivedBody = body
+			json.NewEncoder(w).Encode(map[string]any{"message_id": "msg-001"})
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer bus.Close()
+
+	store := NewSubmissionStore()
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	sub := store.Create("case-prior-art", []string{"prior-art-search"})
+
+	err := bridge.Submit(context.Background(), sub.Token, "prior-art-search", "case-prior-art", nil)
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	if receivedBody["to"] != "prior-art-extractor" {
+		t.Fatalf("expected to=prior-art-extractor, got %v", receivedBody["to"])
+	}
+}
+
+func TestSelectTargetAgentFallsBackToFirst(t *testing.T) {
+	agents := []busclient.AgentInfo{
+		{AgentID: "prior-art-search"},
+		{AgentID: "another-prior-art-agent"},
+	}
+	target := selectTargetAgent("prior-art-search", agents)
+	if target != "prior-art-search" {
+		t.Fatalf("expected fallback to first agent, got %s", target)
 	}
 }
 
@@ -277,6 +326,53 @@ func TestPollCursorAdvances(t *testing.T) {
 	bridge.poll(context.Background())
 	if bridge.cursor != 42 {
 		t.Fatalf("expected cursor=42 after poll, got %d", bridge.cursor)
+	}
+}
+
+func TestPollUnauthorizedReRegistersAndRetries(t *testing.T) {
+	store := NewSubmissionStore()
+	var inboxCalls int32
+	var registerCalls int32
+
+	bus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/agents/register":
+			atomic.AddInt32(&registerCalls, 1)
+			json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		case "/v1/inbox":
+			if atomic.AddInt32(&inboxCalls, 1) == 1 {
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(map[string]any{
+					"error": map[string]any{
+						"code":    "unauthorized",
+						"message": "agent secret not registered",
+					},
+					"ok": false,
+				})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{
+				"events": []any{},
+				"cursor": "7",
+			})
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer bus.Close()
+
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	bridge.poll(context.Background())
+
+	if atomic.LoadInt32(&registerCalls) != 1 {
+		t.Fatalf("expected one re-registration call, got %d", registerCalls)
+	}
+	if atomic.LoadInt32(&inboxCalls) != 2 {
+		t.Fatalf("expected two inbox calls (initial + retry), got %d", inboxCalls)
+	}
+	if bridge.cursor != 7 {
+		t.Fatalf("expected cursor advanced to 7 after retry, got %d", bridge.cursor)
 	}
 }
 

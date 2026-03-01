@@ -44,16 +44,18 @@ type RequestEnvelope struct {
 }
 
 type PipelineMetadata struct {
-	StagesExecuted      []string       `json:"stages_executed"`
-	StagesSkipped       []string       `json:"stages_skipped"`
-	TotalLLMCalls       int            `json:"total_llm_calls"`
-	TotalRetries        int            `json:"total_retries"`
-	StageAttempts       map[string]int `json:"stage_attempts,omitempty"`
-	StageContentRetries map[string]int `json:"stage_content_retries,omitempty"`
-	StartedAt           time.Time      `json:"started_at"`
-	CompletedAt         time.Time      `json:"completed_at"`
-	InputTruncated      bool           `json:"input_truncated"`
-	NeedsReviewReasons  []string       `json:"needs_review_reasons"`
+	StagesExecuted         []string       `json:"stages_executed"`
+	StagesSkipped          []string       `json:"stages_skipped"`
+	TotalLLMCalls          int            `json:"total_llm_calls"`
+	TotalRetries           int            `json:"total_retries"`
+	StageAttempts          map[string]int `json:"stage_attempts,omitempty"`
+	StageContentRetries    map[string]int `json:"stage_content_retries,omitempty"`
+	Stage5BooleanAgreement *bool          `json:"stage_5_boolean_agreement,omitempty"`
+	DecisionTrace          map[string]any `json:"decision_trace,omitempty"`
+	StartedAt              time.Time      `json:"started_at"`
+	CompletedAt            time.Time      `json:"completed_at"`
+	InputTruncated         bool           `json:"input_truncated"`
+	NeedsReviewReasons     []string       `json:"needs_review_reasons"`
 }
 
 type ResponseEnvelope struct {
