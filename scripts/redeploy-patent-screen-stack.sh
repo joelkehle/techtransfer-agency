@@ -50,3 +50,6 @@ echo "Redeploying services: ${SERVICES[*]}"
 echo
 echo "Status:"
 docker ps --format 'table {{.Names}}\t{{.Status}}' | rg 'NAMES|techtransfer-agency(-|_)(operator|patent-extractor|patent-screen|bus)(-|_)1' -n || true
+
+echo
+./scripts/check-production-url.sh "https://techtransfer.agency/"

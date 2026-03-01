@@ -72,6 +72,35 @@ go run ./cmd/patent-extractor --bus-url http://localhost:8080 --agent-id patent-
 
 Details: `docs/PATENT_ELIGIBILITY_SCREEN_SPEC.md`
 
+#### Dev Replay (No LLM Cost)
+
+To iterate report formatting without paying for new model calls, render markdown from a saved patent-screen response envelope JSON:
+
+```bash
+go run ./cmd/render-patent-report \
+  -input /absolute/path/to/patent-screen-response.json \
+  -output /absolute/path/to/report.md \
+  -json-output /absolute/path/to/rebuilt-response.json
+```
+
+You can also block accidental live model calls during development:
+
+```bash
+export PATENT_SCREEN_NO_LLM=1
+```
+
+Quick PDF layout regression loop (uses saved replay JSON, no LLM calls):
+
+```bash
+make pdf-regression-test
+```
+
+Recalibrate baselines intentionally after accepted visual/layout changes:
+
+```bash
+make pdf-regression-calibrate
+```
+
 ### Prior Art Search Agent
 
 Run the standalone prior art search agent:
@@ -120,7 +149,21 @@ docker compose version
 make redeploy-patent-screen
 ```
 
-This rebuilds and restarts only `operator`, `patent-extractor`, and `patent-screen`.
+This rebuilds and restarts only `operator`, `patent-extractor`, and `patent-screen`, then runs a production URL smoke check against `https://techtransfer.agency/`.
+
+- To run only the production smoke check:
+
+```bash
+make smoke-production
+```
+
+If Cloudflare Access protects the site, set service token env vars before running:
+
+```bash
+export CF_ACCESS_CLIENT_ID=...
+export CF_ACCESS_CLIENT_SECRET=...
+make smoke-production
+```
 
 ### Authentication
 

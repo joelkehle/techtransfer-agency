@@ -1,0 +1,28 @@
+{
+  "fixture": "web/fixtures/patent-screen-replay.json",
+  "endpoint": "http://localhost:3000/report-pdf-inline",
+  "baseline_dir": "tests/pdf_regression/baseline",
+  "pages": [
+    1,
+    2
+  ],
+  "text_invariants": {
+    "page1_footer_contains": "Page 1 of",
+    "page2_footer_contains": "Page 2 of",
+    "must_start_on_page2": "How This Report Works"
+  },
+  "thresholds": {
+    "max_diff_pct_per_page": 1.0,
+    "pixel_channel_threshold": 15
+  },
+  "calibration": {
+    "generated_at_utc": "2026-03-01T05:43:39Z",
+    "text_invariants": {
+      "page1_footer_present": true,
+      "page2_footer_present": true,
+      "page1_no_how_this_report_works": true,
+      "page2_has_how_this_report_works": true
+    },
+    "notes": "Baseline regenerated from current server-side PDF renderer."
+  }
+}
