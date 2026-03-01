@@ -319,13 +319,13 @@ func TestPollCursorAdvances(t *testing.T) {
 	defer bus.Close()
 
 	bridge := NewBridge(bus.URL, "operator", "secret", store)
-	if bridge.cursor != 0 {
-		t.Fatalf("expected initial cursor=0, got %d", bridge.cursor)
+	if bridge.Cursor() != 0 {
+		t.Fatalf("expected initial cursor=0, got %d", bridge.Cursor())
 	}
 
 	bridge.poll(context.Background())
-	if bridge.cursor != 42 {
-		t.Fatalf("expected cursor=42 after poll, got %d", bridge.cursor)
+	if bridge.Cursor() != 42 {
+		t.Fatalf("expected cursor=42 after poll, got %d", bridge.Cursor())
 	}
 }
 
@@ -371,8 +371,46 @@ func TestPollUnauthorizedReRegistersAndRetries(t *testing.T) {
 	if atomic.LoadInt32(&inboxCalls) != 2 {
 		t.Fatalf("expected two inbox calls (initial + retry), got %d", inboxCalls)
 	}
-	if bridge.cursor != 7 {
-		t.Fatalf("expected cursor advanced to 7 after retry, got %d", bridge.cursor)
+	if bridge.Cursor() != 7 {
+		t.Fatalf("expected cursor advanced to 7 after retry, got %d", bridge.Cursor())
+	}
+}
+
+func TestSyncCursorToLatest(t *testing.T) {
+	store := NewSubmissionStore()
+	var inboxCalls int32
+
+	bus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/inbox":
+			atomic.AddInt32(&inboxCalls, 1)
+			json.NewEncoder(w).Encode(map[string]any{
+				"events": []map[string]any{
+					{
+						"message_id":      "old-msg",
+						"type":            "response",
+						"conversation_id": "old-conv",
+						"body":            "old body",
+					},
+				},
+				"cursor": "99",
+			})
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer bus.Close()
+
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	if err := bridge.SyncCursorToLatest(context.Background()); err != nil {
+		t.Fatalf("SyncCursorToLatest: %v", err)
+	}
+	if bridge.Cursor() != 99 {
+		t.Fatalf("expected cursor=99 after sync, got %d", bridge.Cursor())
+	}
+	if atomic.LoadInt32(&inboxCalls) != 1 {
+		t.Fatalf("expected one inbox call, got %d", inboxCalls)
 	}
 }
 

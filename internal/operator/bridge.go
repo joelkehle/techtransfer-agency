@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -13,12 +14,13 @@ import (
 )
 
 type Bridge struct {
-	client  *busclient.Client
-	agentID string
-	secret  string
-	store   *SubmissionStore
-	cursor  int
-	seq     int64
+	client   *busclient.Client
+	agentID  string
+	secret   string
+	store    *SubmissionStore
+	cursorMu sync.Mutex
+	cursor   int
+	seq      int64
 }
 
 func NewBridge(busURL, agentID, secret string, store *SubmissionStore) *Bridge {
@@ -125,8 +127,43 @@ func (b *Bridge) PollLoop(ctx context.Context) {
 	}
 }
 
+func (b *Bridge) Cursor() int {
+	b.cursorMu.Lock()
+	defer b.cursorMu.Unlock()
+	return b.cursor
+}
+
+func (b *Bridge) SetCursor(cursor int) {
+	b.cursorMu.Lock()
+	b.cursor = cursor
+	b.cursorMu.Unlock()
+}
+
+// SyncCursorToLatest advances cursor without processing returned events.
+// Useful on cold start to avoid replaying historical backlog when no local state exists.
+func (b *Bridge) SyncCursorToLatest(ctx context.Context) error {
+	cursor := b.Cursor()
+	_, next, err := b.client.PollInbox(ctx, b.agentID, b.secret, cursor, 0)
+	if err != nil {
+		if isUnauthorizedPollError(err) {
+			if regErr := b.Register(ctx); regErr != nil {
+				return fmt.Errorf("re-register before cursor sync: %w", regErr)
+			}
+			_, next, err = b.client.PollInbox(ctx, b.agentID, b.secret, cursor, 0)
+			if err != nil {
+				return fmt.Errorf("cursor sync poll after re-register: %w", err)
+			}
+		} else {
+			return fmt.Errorf("cursor sync poll: %w", err)
+		}
+	}
+	b.SetCursor(next)
+	return nil
+}
+
 func (b *Bridge) poll(ctx context.Context) {
-	events, next, err := b.client.PollInbox(ctx, b.agentID, b.secret, b.cursor, 0)
+	cursor := b.Cursor()
+	events, next, err := b.client.PollInbox(ctx, b.agentID, b.secret, cursor, 0)
 	if err != nil {
 		if isUnauthorizedPollError(err) {
 			log.Printf("operator poll unauthorized; attempting re-register")
@@ -134,7 +171,7 @@ func (b *Bridge) poll(ctx context.Context) {
 				log.Printf("operator re-register failed after unauthorized poll: %v", regErr)
 				return
 			}
-			events, next, err = b.client.PollInbox(ctx, b.agentID, b.secret, b.cursor, 0)
+			events, next, err = b.client.PollInbox(ctx, b.agentID, b.secret, cursor, 0)
 			if err != nil {
 				log.Printf("operator poll error after re-register: %v", err)
 				return
@@ -144,7 +181,7 @@ func (b *Bridge) poll(ctx context.Context) {
 			return
 		}
 	}
-	b.cursor = next
+	b.SetCursor(next)
 
 	for _, evt := range events {
 		switch evt.Type {

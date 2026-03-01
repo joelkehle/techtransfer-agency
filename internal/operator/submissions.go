@@ -20,7 +20,7 @@ type WorkflowState struct {
 	Status         WorkflowStatus `json:"status"`
 	ConversationID string         `json:"conversation_id"`
 	RequestID      string         `json:"request_id"`
-	Report         string         `json:"-"`
+	Report         string         `json:"report,omitempty"`
 	Ready          bool           `json:"ready"`
 }
 
@@ -93,6 +93,65 @@ func (s *SubmissionStore) Get(token string) *Submission {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.submissions[token]
+}
+
+func (s *SubmissionStore) IsEmpty() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.submissions) == 0
+}
+
+func (s *SubmissionStore) Snapshot() map[string]*Submission {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make(map[string]*Submission, len(s.submissions))
+	for token, sub := range s.submissions {
+		cloned := &Submission{
+			Token:     sub.Token,
+			CaseID:    sub.CaseID,
+			CreatedAt: sub.CreatedAt,
+			Workflows: make(map[string]*WorkflowState, len(sub.Workflows)),
+		}
+		for wf, ws := range sub.Workflows {
+			cloned.Workflows[wf] = &WorkflowState{
+				Status:         ws.Status,
+				ConversationID: ws.ConversationID,
+				RequestID:      ws.RequestID,
+				Report:         ws.Report,
+				Ready:          ws.Ready,
+			}
+		}
+		out[token] = cloned
+	}
+	return out
+}
+
+func (s *SubmissionStore) Restore(snapshot map[string]*Submission) {
+	if snapshot == nil {
+		snapshot = map[string]*Submission{}
+	}
+	restored := make(map[string]*Submission, len(snapshot))
+	for token, sub := range snapshot {
+		cloned := &Submission{
+			Token:     sub.Token,
+			CaseID:    sub.CaseID,
+			CreatedAt: sub.CreatedAt,
+			Workflows: make(map[string]*WorkflowState, len(sub.Workflows)),
+		}
+		for wf, ws := range sub.Workflows {
+			cloned.Workflows[wf] = &WorkflowState{
+				Status:         ws.Status,
+				ConversationID: ws.ConversationID,
+				RequestID:      ws.RequestID,
+				Report:         ws.Report,
+				Ready:          ws.Ready,
+			}
+		}
+		restored[token] = cloned
+	}
+	s.mu.Lock()
+	s.submissions = restored
+	s.mu.Unlock()
 }
 
 // SetWorkflowIDs records the conversation_id and request_id for a workflow after sending the bus message.

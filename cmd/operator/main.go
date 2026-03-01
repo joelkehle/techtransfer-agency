@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/joelkehle/techtransfer-agency/internal/operator"
 )
@@ -20,6 +21,7 @@ func main() {
 		agentID   = flag.String("agent-id", "operator", "Agent ID to register on the bus")
 		webDir    = flag.String("web-dir", "", "Directory containing web UI files (default: web/ relative to binary)")
 		uploadDir = flag.String("upload-dir", "./uploads", "Directory for uploaded files")
+		stateFile = flag.String("state-file", "./uploads/operator-state.json", "Path to persisted operator state (cursor + submissions)")
 	)
 	flag.Parse()
 
@@ -49,6 +51,40 @@ func main() {
 	if err := bridge.Register(ctx); err != nil {
 		log.Printf("warning: initial bus registration failed: %v (will retry via heartbeat)", err)
 	}
+	if st, err := operator.LoadState(*stateFile); err != nil {
+		log.Printf("warning: failed to load operator state %s: %v", *stateFile, err)
+	} else {
+		store.Restore(st.Submissions)
+		bridge.SetCursor(st.Cursor)
+		log.Printf("operator state restored: submissions=%d cursor=%d", len(st.Submissions), st.Cursor)
+	}
+	if store.IsEmpty() {
+		if err := bridge.SyncCursorToLatest(ctx); err != nil {
+			log.Printf("warning: failed to sync cursor to latest: %v", err)
+		}
+	}
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		save := func() {
+			state := operator.PersistedState{
+				Cursor:      bridge.Cursor(),
+				Submissions: store.Snapshot(),
+			}
+			if err := operator.SaveState(*stateFile, state); err != nil {
+				log.Printf("warning: failed to save operator state %s: %v", *stateFile, err)
+			}
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				save()
+				return
+			case <-ticker.C:
+				save()
+			}
+		}
+	}()
 
 	go bridge.PollLoop(ctx)
 	go bridge.Heartbeat(ctx)

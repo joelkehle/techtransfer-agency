@@ -247,3 +247,43 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestSnapshotRestoreRoundTrip(t *testing.T) {
+	store := NewSubmissionStore()
+	sub := store.Create("case-snap", []string{"patent-screen"})
+	store.SetWorkflowIDs(sub.Token, "patent-screen", "conv-snap", "req-snap")
+	store.CompleteWorkflow("conv-snap", "final report")
+
+	snapshot := store.Snapshot()
+	restored := NewSubmissionStore()
+	restored.Restore(snapshot)
+
+	got := restored.Get(sub.Token)
+	if got == nil {
+		t.Fatal("expected restored submission")
+	}
+	ws := got.Workflows["patent-screen"]
+	if ws == nil {
+		t.Fatal("expected restored workflow")
+	}
+	if ws.Status != StatusCompleted {
+		t.Fatalf("expected restored status completed, got %s", ws.Status)
+	}
+	if ws.Report != "final report" {
+		t.Fatalf("expected restored report, got %q", ws.Report)
+	}
+	if !ws.Ready {
+		t.Fatal("expected restored ready=true")
+	}
+}
+
+func TestIsEmpty(t *testing.T) {
+	store := NewSubmissionStore()
+	if !store.IsEmpty() {
+		t.Fatal("expected empty store")
+	}
+	store.Create("case-1", []string{"wf"})
+	if store.IsEmpty() {
+		t.Fatal("expected non-empty store after create")
+	}
+}
