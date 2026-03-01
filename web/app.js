@@ -15,13 +15,15 @@
   var statusError = document.getElementById("status-error");
   var btnNew = document.getElementById("btn-new");
   var reportViewer = document.getElementById("report-viewer");
-  var reportTitle = document.getElementById("report-title");
+  var reportMeta = document.getElementById("report-meta");
   var reportBadges = document.getElementById("report-badges");
   var reportHtml = document.getElementById("report-html");
 
   var selectedFile = null;
   var workflows = [];
   var pollTimer = null;
+  var replayReports = {};
+  var replayReportURL = "/fixtures/patent-screen-replay.json";
 
   // --- Workflow Fetching ---
 
@@ -153,7 +155,48 @@
     formData.append("workflows", selectedWorkflows.join(","));
 
     btnSubmit.disabled = true;
-    btnSubmit.textContent = "Submitting...";
+    btnSubmit.textContent = "Generating...";
+
+    if (canReplaySubmission(selectedWorkflows)) {
+      runReplaySubmission(selectedWorkflows)
+        .catch(function () {
+          submitLive(formData, selectedWorkflows);
+        });
+      return;
+    }
+
+    submitLive(formData, selectedWorkflows);
+  }
+
+  function canReplaySubmission(selectedWorkflows) {
+    return selectedWorkflows.length === 1 && selectedWorkflows[0] === "patent-screen";
+  }
+
+  function runReplaySubmission(selectedWorkflows) {
+    return fetch(replayReportURL, { cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Replay fixture unavailable");
+        return res.text();
+      })
+      .then(function (raw) {
+        var replayToken = "replay-" + Date.now();
+        replayReports[replayToken + "/patent-screen"] = raw;
+        showStatusView(replayToken, selectedWorkflows);
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        updateStatusUI({
+          token: replayToken,
+          workflows: {
+            "patent-screen": { status: "completed", ready: true }
+          }
+        });
+        loadReportPreview(replayToken, "patent-screen");
+      });
+  }
+
+  function submitLive(formData, selectedWorkflows) {
 
     fetch("/submit", {
       method: "POST",
@@ -170,7 +213,7 @@
       .catch(function (err) {
         showError(submitError, err.message);
         btnSubmit.disabled = false;
-        btnSubmit.textContent = "Submit";
+        btnSubmit.textContent = "Generate Report";
       });
   }
 
@@ -197,7 +240,17 @@
     }
     workflowStatusList.innerHTML = html;
 
-    // Start polling
+    // Replay mode uses fixture data and has no /status endpoint.
+    if (isReplayToken(token)) {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      hideError(statusError);
+      return;
+    }
+
+    // Start polling for live submissions.
     pollStatus(token);
   }
 
@@ -277,11 +330,11 @@
           '" data-workflow="' +
           escapeAttr(cap) +
           '">View</button> ' +
-          '<a class="btn-download" href="/report/' +
-          encodeURIComponent(data.token) +
-          "/" +
-          encodeURIComponent(cap) +
-          '" download>Download</a>';
+          '<button class="btn-download" data-download-pdf="1" data-token="' +
+          escapeAttr(data.token) +
+          '" data-workflow="' +
+          escapeAttr(cap) +
+          '">Download</button>';
         actionEl.className = "";
       } else if (status === "error") {
         actionEl.textContent = "Error";
@@ -303,6 +356,16 @@
         var token = e.currentTarget.getAttribute("data-token");
         var workflow = e.currentTarget.getAttribute("data-workflow");
         loadReportPreview(token, workflow);
+      });
+    }
+    var downloadButtons = workflowStatusList.querySelectorAll('button[data-download-pdf="1"]');
+    for (var k = 0; k < downloadButtons.length; k++) {
+      if (downloadButtons[k].getAttribute("data-bound") === "1") continue;
+      downloadButtons[k].setAttribute("data-bound", "1");
+      downloadButtons[k].addEventListener("click", function (e) {
+        var token = e.currentTarget.getAttribute("data-token");
+        var workflow = e.currentTarget.getAttribute("data-workflow");
+        downloadReportPDF(token, workflow);
       });
     }
   }
@@ -335,13 +398,13 @@
     fileNameEl.textContent = "";
     dropZone.classList.remove("has-file");
     btnSubmit.disabled = true;
-    btnSubmit.textContent = "Submit";
+    btnSubmit.textContent = "Generate Report";
     hideError(submitError);
     hideError(statusError);
     reportViewer.hidden = true;
     reportHtml.innerHTML = "";
     reportBadges.innerHTML = "";
-    reportTitle.textContent = "Report Preview";
+    reportMeta.innerHTML = "";
 
     var boxes = workflowCheckboxes.querySelectorAll('input[type="checkbox"]');
     for (var i = 0; i < boxes.length; i++) {
@@ -404,41 +467,155 @@
   }
 
   function loadReportPreview(token, workflow) {
+    var replayKey = token + "/" + workflow;
+    if (replayReports[replayKey]) {
+      renderReportRaw(replayReports[replayKey], workflow);
+      return;
+    }
     fetch("/report/" + encodeURIComponent(token) + "/" + encodeURIComponent(workflow))
       .then(function (res) {
         if (!res.ok) throw new Error("Report fetch failed (HTTP " + res.status + ")");
         return res.text();
       })
-      .then(function (raw) {
-        var title = getWorkflowLabel(workflow) + " Report";
-        var markdown = raw;
-        var badgeHTML = "";
-
-        try {
-          var parsed = JSON.parse(raw);
-          if (parsed && parsed.report_markdown) {
-            markdown = parsed.report_markdown;
-            if (parsed.determination) {
-              badgeHTML += '<span class="report-badge">' + escapeHtml(String(parsed.determination)) + "</span>";
-            }
-            if (parsed.stage_outputs && parsed.stage_outputs.stage_6) {
-              var priority = parsed.stage_outputs.stage_6.prior_art_search_priority;
-              if (priority) {
-                badgeHTML += '<span class="report-badge">Prior Art Priority: ' + escapeHtml(String(priority)) + "</span>";
-              }
-            }
-          }
-        } catch (e) {}
-
-        reportTitle.textContent = title;
-        reportBadges.innerHTML = badgeHTML;
-        reportHtml.innerHTML = markdownToHtml(markdown);
-        reportViewer.hidden = false;
-        reportViewer.scrollIntoView({ behavior: "smooth", block: "start" });
-      })
+      .then(function (raw) { renderReportRaw(raw, workflow); })
       .catch(function (err) {
         showError(statusError, err.message);
       });
+  }
+
+  function renderReportRaw(raw, workflow) {
+    var markdown = raw;
+    var badgeHTML = "";
+    var metaHTML = "";
+
+    try {
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.report_markdown) {
+        markdown = parsed.report_markdown;
+        if (parsed.determination) {
+          badgeHTML += '<span class="report-badge">' + escapeHtml(String(parsed.determination)) + "</span>";
+        }
+        if (parsed.stage_outputs && parsed.stage_outputs.stage_6) {
+          var priority = parsed.stage_outputs.stage_6.prior_art_search_priority;
+          if (priority) {
+            badgeHTML += '<span class="report-badge">Prior Art Priority: ' + escapeHtml(String(priority)) + "</span>";
+          }
+        }
+        metaHTML = buildReportMetaHTML(parsed);
+      }
+    } catch (e) {}
+
+    reportMeta.innerHTML = metaHTML;
+    reportBadges.innerHTML = badgeHTML;
+    reportHtml.innerHTML = markdownToHtml(markdown);
+    reportViewer.hidden = false;
+    reportViewer.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function downloadReportPDF(token, workflow) {
+    if (!isReplayToken(token)) {
+      window.location.href = "/report-pdf/" + encodeURIComponent(token) + "/" + encodeURIComponent(workflow);
+      return;
+    }
+    readReportRaw(token, workflow)
+      .then(function (raw) {
+        return fetch("/report-pdf-inline", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+          body: raw
+        });
+      })
+      .then(function (res) {
+        if (!res.ok) throw new Error("PDF generation failed (HTTP " + res.status + ")");
+        return res.blob();
+      })
+      .then(function (blob) {
+        downloadBlob(blob, workflow + "-" + token + ".pdf");
+      })
+      .catch(function (err) {
+        showError(statusError, err.message || "Failed to prepare PDF");
+      });
+  }
+
+  function readReportRaw(token, workflow) {
+    var replayKey = token + "/" + workflow;
+    if (replayReports[replayKey]) {
+      return Promise.resolve(replayReports[replayKey]);
+    }
+    return fetch("/report/" + encodeURIComponent(token) + "/" + encodeURIComponent(workflow))
+      .then(function (res) {
+        if (!res.ok) throw new Error("Report fetch failed (HTTP " + res.status + ")");
+        return res.text();
+      });
+  }
+
+  function downloadBlob(blob, filename) {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 0);
+  }
+
+  function buildReportMetaHTML(parsed) {
+    if (!parsed) return "";
+
+    var reference = formatCaseReference(parsed.case_id);
+    var invention = "";
+    var dateText = "";
+
+    if (parsed.stage_outputs && parsed.stage_outputs.stage_1 && parsed.stage_outputs.stage_1.invention_title) {
+      invention = String(parsed.stage_outputs.stage_1.invention_title);
+    }
+    if (parsed.pipeline_metadata && parsed.pipeline_metadata.completed_at) {
+      dateText = formatCompletedAt(parsed.pipeline_metadata.completed_at);
+    }
+
+    var html = "";
+    if (reference) {
+      html += "<div><strong>Reference:</strong> " + escapeHtml(reference) + "</div>";
+    }
+    if (invention) {
+      html += "<div><strong>Invention:</strong> " + escapeHtml(invention) + "</div>";
+    }
+    if (dateText) {
+      html += "<div><strong>Date:</strong> " + escapeHtml(dateText) + "</div>";
+    }
+    return html;
+  }
+
+  function formatCaseReference(caseID) {
+    var id = String(caseID || "").trim();
+    if (!id) return "";
+    if (/^\d{4}-\d{3}$/.test(id)) {
+      return "UCLA Case #" + id;
+    }
+    return id;
+  }
+
+  function formatCompletedAt(value) {
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return String(value || "");
+    try {
+      return d.toLocaleString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short"
+      });
+    } catch (e) {
+      return d.toString();
+    }
+  }
+
+  function isReplayToken(token) {
+    return String(token || "").indexOf("replay-") === 0;
   }
 
   function markdownToHtml(markdown) {

@@ -2,6 +2,7 @@ package operator
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
@@ -422,6 +423,95 @@ func TestHandleReportBadPath(t *testing.T) {
 	}
 }
 
+type mockPDFRenderer struct {
+	pdf []byte
+	err error
+}
+
+func (m mockPDFRenderer) Render(_ context.Context, _ string) ([]byte, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.pdf, nil
+}
+
+func TestHandleReportPDFCompleted(t *testing.T) {
+	agents := []map[string]any{
+		{"agent_id": "screener", "capabilities": []string{"patent-screen"}, "status": "active"},
+	}
+	bus := fakeBusServer(t, agents)
+	t.Cleanup(bus.Close)
+
+	store := NewSubmissionStore()
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	handler := newServer(bridge, store, t.TempDir(), t.TempDir(), mockPDFRenderer{pdf: []byte("%PDF-1.4\nmock\n")})
+
+	sub := store.Create("case-pdf", []string{"patent-screen"})
+	store.SetWorkflowIDs(sub.Token, "patent-screen", "conv-pdf", "req-1")
+	store.CompleteWorkflow("conv-pdf", "Final report text here")
+
+	req := httptest.NewRequest(http.MethodGet, "/report-pdf/"+sub.Token+"/patent-screen", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "application/pdf" {
+		t.Fatalf("expected application/pdf content-type, got %s", ct)
+	}
+	if !strings.Contains(rr.Header().Get("Content-Disposition"), ".pdf") {
+		t.Fatalf("expected pdf content-disposition, got %q", rr.Header().Get("Content-Disposition"))
+	}
+	if got := rr.Body.String(); !strings.HasPrefix(got, "%PDF-1.4") {
+		t.Fatalf("expected mock pdf body, got %q", got)
+	}
+}
+
+func TestHandleReportPDFUnknownToken(t *testing.T) {
+	agents := []map[string]any{
+		{"agent_id": "screener", "capabilities": []string{"patent-screen"}, "status": "active"},
+	}
+	bus := fakeBusServer(t, agents)
+	t.Cleanup(bus.Close)
+
+	store := NewSubmissionStore()
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	handler := newServer(bridge, store, t.TempDir(), t.TempDir(), mockPDFRenderer{pdf: []byte("%PDF-1.4\nmock\n")})
+
+	req := httptest.NewRequest(http.MethodGet, "/report-pdf/bad-token/patent-screen", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 404 {
+		t.Fatalf("expected 404, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleReportPDFInline(t *testing.T) {
+	agents := []map[string]any{
+		{"agent_id": "screener", "capabilities": []string{"patent-screen"}, "status": "active"},
+	}
+	bus := fakeBusServer(t, agents)
+	t.Cleanup(bus.Close)
+
+	store := NewSubmissionStore()
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	handler := newServer(bridge, store, t.TempDir(), t.TempDir(), mockPDFRenderer{pdf: []byte("%PDF-1.4\nmock\n")})
+
+	req := httptest.NewRequest(http.MethodPost, "/report-pdf-inline", strings.NewReader("## Report\ncontent"))
+	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "application/pdf" {
+		t.Fatalf("expected application/pdf content-type, got %s", ct)
+	}
+}
+
 func TestHandleSubmitCreatesUploadFile(t *testing.T) {
 	agents := []map[string]any{
 		{"agent_id": "screener", "capabilities": []string{"patent-screen"}, "status": "active"},
@@ -499,5 +589,64 @@ func TestSubmitUIContractDoesNotReferenceRemovedCaseNumberField(t *testing.T) {
 	}
 	if !strings.Contains(app, `formData.append("file", selectedFile)`) {
 		t.Fatal("expected file upload form data append in app.js")
+	}
+	if !strings.Contains(index, "<!DOCTYPE html>") ||
+		!strings.Contains(index, `<div id="view-submit">`) ||
+		!strings.Contains(index, `<script src="app.js`) {
+		t.Fatal("index.html appears malformed or incomplete")
+	}
+}
+
+func TestIndexHTMLNotCorruptedWithLineFragments(t *testing.T) {
+	indexPath := filepath.Join("..", "..", "web", "index.html")
+	indexBytes, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	index := string(indexBytes)
+
+	badFragments := []string{
+		`27:        <div class="service-card live">`,
+		`34:            <span class="service-badge live">Active</span>`,
+		`50:          <h3>Prior Art Search</h3>`,
+		`115:          <h3>Market Analysis</h3>`,
+	}
+	for _, frag := range badFragments {
+		if strings.Contains(index, frag) {
+			t.Fatalf("index.html appears corrupted; found fragment: %q", frag)
+		}
+	}
+}
+
+func TestHomepageShowsLiveChipsForPriorArtAndMarketAnalysis(t *testing.T) {
+	indexPath := filepath.Join("..", "..", "web", "index.html")
+	indexBytes, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	index := string(indexBytes)
+
+	if !strings.Contains(index, `<span class="strip-chip live">Prior Art Search</span>`) {
+		t.Fatal("expected Prior Art Search chip to be marked live on homepage")
+	}
+	if !strings.Contains(index, `<span class="strip-chip live">Market Analysis</span>`) {
+		t.Fatal("expected Market Analysis chip to be marked live on homepage")
+	}
+}
+
+func TestVisionPageShowsActiveDemoForPatentEligibilityScreen(t *testing.T) {
+	visionPath := filepath.Join("..", "..", "web", "vision.html")
+	visionBytes, err := os.ReadFile(visionPath)
+	if err != nil {
+		t.Fatalf("read vision.html: %v", err)
+	}
+	vision := string(visionBytes)
+
+	required := `<span class="service-badge live">Active</span>
+            <span class="service-badge live">Demo</span>
+          </div>
+          <h3>Patent Eligibility Screen</h3>`
+	if !strings.Contains(vision, required) {
+		t.Fatal("expected Patent Eligibility Screen card to show Active and Demo badges")
 	}
 }

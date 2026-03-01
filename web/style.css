@@ -994,21 +994,36 @@ button:active:not(:disabled) {
 
 .report-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.8rem;
   margin-bottom: 0.9rem;
 }
 
-.report-header h2 {
-  margin-bottom: 0;
-  font-size: 1rem;
+.report-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+
+.report-meta strong {
+  color: var(--ink);
 }
 
 .report-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+
+.report-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
 }
 
 .report-badge {

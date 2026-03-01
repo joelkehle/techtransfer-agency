@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,25 +24,32 @@ type WorkflowLabel struct {
 }
 
 type Server struct {
-	bridge    *Bridge
-	store     *SubmissionStore
-	labels    map[string]WorkflowLabel
-	webDir    string
-	uploadDir string
+	bridge      *Bridge
+	store       *SubmissionStore
+	labels      map[string]WorkflowLabel
+	webDir      string
+	uploadDir   string
+	pdfRenderer ReportPDFRenderer
 }
 
 func NewServer(bridge *Bridge, store *SubmissionStore, webDir, uploadDir string) http.Handler {
+	return newServer(bridge, store, webDir, uploadDir, NewChromiumPDFRenderer(webDir))
+}
+
+func newServer(bridge *Bridge, store *SubmissionStore, webDir, uploadDir string, pdfRenderer ReportPDFRenderer) http.Handler {
 	s := &Server{
-		bridge:    bridge,
-		store:     store,
-		webDir:    webDir,
-		uploadDir: uploadDir,
+		bridge:      bridge,
+		store:       store,
+		webDir:      webDir,
+		uploadDir:   uploadDir,
+		pdfRenderer: pdfRenderer,
 		labels: map[string]WorkflowLabel{
 			// Prior Art & Patentability
-			"patent-screen":    {Capability: "patent-screen", Label: "Patent Eligibility Screen", Description: "Assess patentability of an invention disclosure"},
-			"prior-art-search": {Capability: "prior-art-search", Label: "Prior Art Search", Description: "Search USPTO, EPO, WIPO and academic literature for prior art"},
-			"prior-art":        {Capability: "prior-art", Label: "Prior Art Search", Description: "Search USPTO, EPO, WIPO and academic literature for prior art"},
-			"patent-opinion":   {Capability: "patent-opinion", Label: "Patentability Opinion", Description: "Formal patentability opinion and claim drafting guidance"},
+			"patent-screen":             {Capability: "patent-screen", Label: "Patent Eligibility Screen", Description: "Assess patentability of an invention disclosure"},
+			"patent-eligibility-screen": {Capability: "patent-eligibility-screen", Label: "Patent Eligibility Screen", Description: "Assess patentability of an invention disclosure"},
+			"prior-art-search":          {Capability: "prior-art-search", Label: "Prior Art Search", Description: "Search USPTO, EPO, WIPO and academic literature for prior art"},
+			"prior-art":                 {Capability: "prior-art", Label: "Prior Art Search", Description: "Search USPTO, EPO, WIPO and academic literature for prior art"},
+			"patent-opinion":            {Capability: "patent-opinion", Label: "Patentability Opinion", Description: "Formal patentability opinion and claim drafting guidance"},
 			// Technical Assessment
 			"technical-review":      {Capability: "technical-review", Label: "Technical Domain Review", Description: "Verify technical claims, assess feasibility and TRL"},
 			"competitive-landscape": {Capability: "competitive-landscape", Label: "Competitive Landscape", Description: "Map competing technologies and patent landscape"},
@@ -62,6 +70,8 @@ func NewServer(bridge *Bridge, store *SubmissionStore, webDir, uploadDir string)
 	mux.HandleFunc("/submit", s.handleSubmit)
 	mux.HandleFunc("/status/", s.handleStatus)
 	mux.HandleFunc("/report/", s.handleReport)
+	mux.HandleFunc("/report-pdf/", s.handleReportPDF)
+	mux.HandleFunc("/report-pdf-inline", s.handleReportPDFInline)
 	mux.HandleFunc("/", s.handleRoot)
 	return mux
 }
@@ -112,17 +122,27 @@ func (s *Server) handleWorkflows(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		for _, cap := range a.Capabilities {
-			if seen[cap] {
+			normalized := normalizeWorkflowCapability(cap)
+			if seen[normalized] {
 				continue
 			}
-			seen[cap] = true
-			if label, ok := s.labels[cap]; ok {
+			seen[normalized] = true
+			if label, ok := s.labels[normalized]; ok {
 				workflows = append(workflows, label)
 			}
 			// Skip capabilities without a label — they are internal pipeline steps.
 		}
 	}
 	writeJSON(w, 200, map[string]any{"workflows": workflows})
+}
+
+func normalizeWorkflowCapability(cap string) string {
+	switch strings.TrimSpace(cap) {
+	case "patent-eligibility-screen":
+		return "patent-screen"
+	default:
+		return strings.TrimSpace(cap)
+	}
 }
 
 func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
@@ -263,4 +283,112 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 	_, _ = w.Write([]byte(ws.Report))
+}
+
+func (s *Server) handleReportPDF(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if s.pdfRenderer == nil {
+		writeError(w, 503, "pdf renderer unavailable")
+		return
+	}
+	token, workflow, ws, ok := s.getWorkflowReport(strings.TrimPrefix(r.URL.Path, "/report-pdf/"), w)
+	if !ok {
+		return
+	}
+	pdf, err := s.pdfRenderer.Render(r.Context(), ws.Report)
+	if err != nil {
+		log.Printf("render report pdf failed token=%s workflow=%s err=%v", token, workflow, err)
+		writeError(w, 500, "failed to render pdf")
+		return
+	}
+	filename := fmt.Sprintf("%s-%s.pdf", sanitizeFilename(workflow), sanitizeFilename(token))
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	w.WriteHeader(200)
+	_, _ = w.Write(pdf)
+}
+
+func (s *Server) handleReportPDFInline(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if s.pdfRenderer == nil {
+		writeError(w, 503, "pdf renderer unavailable")
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 5<<20))
+	if err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	report := strings.TrimSpace(string(body))
+	if report == "" {
+		writeError(w, 400, "report body is required")
+		return
+	}
+	pdf, err := s.pdfRenderer.Render(r.Context(), report)
+	if err != nil {
+		log.Printf("render inline report pdf failed: %v", err)
+		writeError(w, 500, "failed to render pdf")
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `attachment; filename="report.pdf"`)
+	w.WriteHeader(200)
+	_, _ = w.Write(pdf)
+}
+
+func (s *Server) getWorkflowReport(path string, w http.ResponseWriter) (token string, workflow string, ws *WorkflowState, ok bool) {
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		writeError(w, 400, "path must be /{token}/{workflow}")
+		return "", "", nil, false
+	}
+	token = parts[0]
+	workflow = parts[1]
+	sub := s.store.Get(token)
+	if sub == nil {
+		writeError(w, 404, "submission not found")
+		return "", "", nil, false
+	}
+	ws, ok = sub.Workflows[workflow]
+	if !ok {
+		writeError(w, 404, "workflow not found")
+		return "", "", nil, false
+	}
+	if !ws.Ready {
+		writeError(w, 404, "report not ready")
+		return "", "", nil, false
+	}
+	return token, workflow, ws, true
+}
+
+func sanitizeFilename(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "report"
+	}
+	v = strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r
+		case r >= '0' && r <= '9':
+			return r
+		case r == '-', r == '_':
+			return r
+		default:
+			return '-'
+		}
+	}, v)
+	return v
+}
+
+type ReportPDFRenderer interface {
+	Render(ctx context.Context, report string) ([]byte, error)
 }

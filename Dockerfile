@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /out/patent-pipeline ./cmd/patent-pipel
 # ---- Runtime stage ----
 FROM alpine:3.20
 
-RUN apk add --no-cache ca-certificates tzdata poppler-utils
+RUN apk add --no-cache ca-certificates tzdata poppler-utils chromium nss freetype harfbuzz ttf-freefont
 
 COPY --from=builder /out/techtransfer-agency   /usr/local/bin/techtransfer-agency
 COPY --from=builder /out/operator       /usr/local/bin/operator
