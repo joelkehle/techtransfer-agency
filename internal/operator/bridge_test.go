@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/joelkehle/techtransfer-agency/internal/busclient"
+	"github.com/joelkehle/techtransfer-agency/pkg/busclient"
 )
 
 func TestDiscoverWorkflows(t *testing.T) {
