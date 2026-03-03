@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/joelkehle/techtransfer-agency/internal/busclient"
+	"github.com/joelkehle/techtransfer-agency/pkg/busclient"
 )
 
 type Bridge struct {

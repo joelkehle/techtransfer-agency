@@ -1,6 +1,6 @@
 package patentteam
 
-import "github.com/joelkehle/techtransfer-agency/internal/busclient"
+import "github.com/joelkehle/techtransfer-agency/pkg/busclient"
 
 // Type aliases so existing patentteam code compiles unchanged.
 type Attachment = busclient.Attachment

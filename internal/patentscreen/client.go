@@ -1,6 +1,6 @@
 package patentscreen
 
-import "github.com/joelkehle/techtransfer-agency/internal/busclient"
+import "github.com/joelkehle/techtransfer-agency/pkg/busclient"
 
 type Attachment = busclient.Attachment
 type InboxEvent = busclient.InboxEvent

@@ -111,9 +111,8 @@ services:
         condition: service_healthy
 
   patent-screen:
-    build: .
+    image: ghcr.io/joelkehle/tdg-ip-agents/patent-screen:${TDG_IP_AGENTS_TAG:-latest}
     command:
-      - patent-screen
       - -bus-url=http://bus:8080
       - -agent-id=patent-screen
     environment:
@@ -128,9 +127,8 @@ services:
         condition: service_healthy
 
   prior-art-search:
-    build: .
+    image: ghcr.io/joelkehle/tdg-ip-agents/prior-art-search:${TDG_IP_AGENTS_TAG:-latest}
     command:
-      - prior-art-search
       - -bus-url=http://bus:8080
       - -agent-id=prior-art-search
     environment:
