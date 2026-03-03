@@ -55,9 +55,14 @@ Details: `docs/PATENT_TEAM.md`
 
 ### Patent Screen Agent
 
-Run the standalone patent eligibility screen agent:
+The standalone patent eligibility screen agent now lives in:
+`https://github.com/joelkehle/tdg-ip-agents`.
+
+Run it from that repo:
 
 ```bash
+git clone https://github.com/joelkehle/tdg-ip-agents
+cd tdg-ip-agents
 export PATENT_SCREEN_AGENT_SECRET=replace-with-strong-secret
 export ANTHROPIC_API_KEY=replace-with-api-key
 go run ./cmd/patent-screen --bus-url http://localhost:8080 --agent-id patent-screen
@@ -70,7 +75,7 @@ export PATENT_EXTRACTOR_AGENT_SECRET=replace-with-strong-secret
 go run ./cmd/patent-extractor --bus-url http://localhost:8080 --agent-id patent-extractor --next-agent-id patent-screen
 ```
 
-Details: `docs/PATENT_ELIGIBILITY_SCREEN_SPEC.md`
+This infrastructure repo still hosts the PDF extractor and report renderer utility agents.
 
 #### Dev Replay (No LLM Cost)
 
@@ -103,9 +108,14 @@ make pdf-regression-calibrate
 
 ### Prior Art Search Agent
 
-Run the standalone prior art search agent:
+The standalone prior art search agent now lives in:
+`https://github.com/joelkehle/tdg-ip-agents`.
+
+Run it from that repo:
 
 ```bash
+git clone https://github.com/joelkehle/tdg-ip-agents
+cd tdg-ip-agents
 export PRIOR_ART_AGENT_SECRET=replace-with-strong-secret
 export ANTHROPIC_API_KEY=replace-with-api-key
 export PATENTSVIEW_API_KEY=replace-with-api-key
@@ -119,7 +129,7 @@ export PRIOR_ART_EXTRACTOR_AGENT_SECRET=replace-with-strong-secret
 go run ./cmd/patent-extractor --bus-url http://localhost:8080 --agent-id prior-art-extractor --capability prior-art-search --secret-env PRIOR_ART_EXTRACTOR_AGENT_SECRET --next-agent-id prior-art-search
 ```
 
-Details: `docs/PRIOR_ART_SEARCH_SPEC_v3.2.md`
+This infrastructure repo still hosts the extractor route for prior-art workflows.
 
 ### Runtime Options
 
