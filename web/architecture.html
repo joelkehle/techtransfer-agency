@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture — IP Agency</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='30' y='30' width='40' height='40' rx='5' fill='%2392400e' transform='rotate(45 50 50)'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Young+Serif&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .arch-canvas { margin-top: 1.5rem; }
+
+    /* --- Stick figure --- */
+    .arch-person {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .arch-person svg { color: var(--ink-3); }
+
+    .arch-person-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--ink-3);
+      margin-top: 2px;
+    }
+
+    .arch-person-action {
+      font-size: 0.65rem;
+      color: var(--ink-4);
+      font-style: italic;
+    }
+
+    /* --- Flow arrows --- */
+    .arch-flow {
+      display: flex;
+      justify-content: center;
+      padding: 8px 0;
+    }
+
+    .arch-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .arch-arrow-line {
+      width: 2px;
+      height: 20px;
+      background: var(--border);
+    }
+
+    .arch-arrow-head {
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--ink-4);
+    }
+
+    .arch-arrow-head-up {
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 6px solid var(--ink-4);
+    }
+
+    .arch-arrow-label {
+      font-size: 0.62rem;
+      color: var(--ink-4);
+      margin-top: 3px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* --- Component boxes --- */
+    .arch-component {
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      min-width: 140px;
+      text-align: center;
+      border: 1px solid var(--border-light);
+      background: var(--surface-alt);
+    }
+
+    .arch-component-name {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .arch-component-detail {
+      font-size: 0.73rem;
+      color: var(--ink-3);
+      line-height: 1.5;
+    }
+
+    .arch-component-cmd {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.62rem;
+      color: var(--ink-4);
+      margin-top: 6px;
+    }
+
+    /* Component themes */
+    .arch-c-bus {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-wash);
+    }
+
+    .arch-c-operator {
+      border-left: 3px solid #7c3aed;
+      background: #faf5ff;
+    }
+    .arch-c-operator .arch-component-name { color: #5b21b6; }
+
+    .arch-c-extractor {
+      border-left: 3px solid #b45309;
+      background: #fffbeb;
+    }
+    .arch-c-extractor .arch-component-name { color: #92400e; }
+
+    .arch-c-patent {
+      border-left: 3px solid var(--live);
+      background: var(--live-bg);
+    }
+    .arch-c-patent .arch-component-name { color: var(--live); }
+
+    .arch-c-prior {
+      border-left: 3px solid #0369a1;
+      background: #f0f9ff;
+    }
+    .arch-c-prior .arch-component-name { color: #0c4a6e; }
+
+    .arch-c-market {
+      border-left: 3px solid #7c3aed;
+      background: #faf5ff;
+    }
+    .arch-c-market .arch-component-name { color: #5b21b6; }
+
+    .arch-c-renderer {
+      border-left: 3px solid var(--border);
+      background: var(--surface-alt);
+      opacity: 0.7;
+    }
+
+    .arch-c-shared {
+      border: 1px dashed var(--border);
+      background: var(--surface-alt);
+    }
+    .arch-c-shared .arch-component-name {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.78rem;
+      color: var(--ink-3);
+    }
+
+    /* Extractor instance badges */
+    .arch-instances {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .arch-instance {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.55rem;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+    }
+
+    /* --- Section groups --- */
+    .arch-section {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem 1.5rem 1.5rem;
+      position: relative;
+      background: var(--surface);
+      margin-bottom: 0;
+    }
+
+    .arch-section-label {
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      font-family: var(--font-body);
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 1px 10px;
+      border-radius: 3px;
+      background: var(--bg);
+    }
+
+    .arch-section-owner {
+      position: absolute;
+      top: -10px;
+      right: 16px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 1px 8px;
+      border-radius: 3px;
+      background: var(--bg);
+    }
+
+    .arch-section--infra {
+      border-top: 3px solid var(--accent);
+    }
+    .arch-section--infra .arch-section-label { color: var(--accent); }
+    .arch-section--infra .arch-section-owner { color: var(--accent); }
+
+    .arch-section--utility {
+      border-top: 3px solid #b45309;
+    }
+    .arch-section--utility .arch-section-label { color: #92400e; }
+    .arch-section--utility .arch-section-owner { color: #92400e; }
+
+    .arch-section--sme {
+      border-top: 3px solid var(--ink-3);
+    }
+    .arch-section--sme .arch-section-label { color: var(--ink-2); }
+
+    /* Sub-groups within SME */
+    .arch-subgroup {
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 1.35rem 1rem 1rem;
+      position: relative;
+      background: var(--surface-alt);
+    }
+
+    .arch-subgroup-label {
+      position: absolute;
+      top: -9px;
+      left: 12px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 1px 8px;
+      border-radius: 3px;
+      background: var(--surface);
+    }
+
+    .arch-subgroup--tdg {
+      border-color: var(--live);
+      border-top: 2px solid var(--live);
+    }
+    .arch-subgroup--tdg .arch-subgroup-label { color: var(--live); }
+
+    .arch-subgroup--market {
+      border-color: #7c3aed;
+      border-top: 2px solid #7c3aed;
+    }
+    .arch-subgroup--market .arch-subgroup-label { color: #5b21b6; }
+
+    .arch-sme-grid {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .arch-sme-grid .arch-subgroup {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .arch-subgroup-agents {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .arch-subgroup-agents .arch-component {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    /* --- Shared module bar --- */
+    .arch-shared-bar {
+      margin-top: 14px;
+    }
+
+    /* --- Boundary --- */
+    .arch-boundary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 0;
+    }
+
+    .arch-boundary-line {
+      flex: 1;
+      border-top: 2px dashed var(--border);
+    }
+
+    .arch-boundary-badge {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--ink-3);
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      padding: 3px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+      letter-spacing: 0.03em;
+    }
+
+    /* --- Notes --- */
+    .arch-notes {
+      margin-top: 2rem;
+    }
+
+    .arch-notes h2 {
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink-3);
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+
+    .arch-notes ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .arch-notes li {
+      font-size: 0.82rem;
+      color: var(--ink-2);
+      line-height: 1.55;
+      padding-left: 1.25rem;
+      position: relative;
+    }
+
+    .arch-notes li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.5rem;
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 1px;
+      transform: rotate(45deg);
+    }
+
+    .arch-notes code {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.78em;
+      background: var(--surface-alt);
+      border: 1px solid var(--border-light);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      color: var(--accent);
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 640px) {
+      .arch-sme-grid {
+        flex-direction: column;
+      }
+      .arch-subgroup-agents {
+        flex-direction: column;
+      }
+      .arch-subgroup-agents .arch-component {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card card-wide">
+    <a href="/" class="back-link">&larr; Back to submissions</a>
+
+    <h1>Architecture</h1>
+    <p class="subtitle">Distributed agent architecture</p>
+
+    <div class="arch-canvas">
+
+      <!-- PERSON WITH PDF -->
+      <div class="arch-person">
+        <svg width="48" height="56" viewBox="0 0 48 56" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="8" r="6"/>
+          <line x1="24" y1="14" x2="24" y2="34"/>
+          <line x1="24" y1="20" x2="14" y2="28"/>
+          <line x1="24" y1="20" x2="34" y2="28"/>
+          <line x1="24" y1="34" x2="16" y2="46"/>
+          <line x1="24" y1="34" x2="32" y2="46"/>
+          <!-- PDF in hand -->
+          <rect x="34" y="22" width="10" height="13" rx="1" fill="#fef3c7" stroke="#92400e" stroke-width="1.5"/>
+          <text x="36" y="31" font-size="5" font-family="Figtree, sans-serif" fill="#92400e" stroke="none" font-weight="700">PDF</text>
+        </svg>
+        <span class="arch-person-label">Inventor / TTO Staff</span>
+        <span class="arch-person-action">uploads invention disclosure</span>
+      </div>
+
+      <!-- Arrow: person ↔ operator -->
+      <div class="arch-flow">
+        <div class="arch-arrow">
+          <div class="arch-arrow-head-up"></div>
+          <div class="arch-arrow-line" style="height: 12px;"></div>
+          <div class="arch-arrow-head"></div>
+        </div>
+      </div>
+
+      <!-- OPERATOR -->
+      <div style="display: flex; justify-content: center; margin-bottom: 0;">
+        <div class="arch-component arch-c-operator" style="max-width: 320px;">
+          <div class="arch-component-name">Operator</div>
+          <div class="arch-component-detail">Web UI agent &mdash; accepts PDF uploads, dispatches work via bus, renders reports</div>
+          <div class="arch-component-cmd">cmd/operator</div>
+        </div>
+      </div>
+
+      <!-- Arrow: operator ↔ bus -->
+      <div class="arch-flow">
+        <div class="arch-arrow">
+          <div class="arch-arrow-head-up"></div>
+          <div class="arch-arrow-line" style="height: 12px;"></div>
+          <div class="arch-arrow-head"></div>
+          <div class="arch-arrow-label">HTTP / HMAC-SHA256</div>
+        </div>
+      </div>
+
+      <!-- HTTP BUS -->
+      <div class="arch-section arch-section--infra">
+        <span class="arch-section-label">techtransfer-agency</span>
+        <span class="arch-section-owner">Infrastructure</span>
+
+        <div style="display: flex; justify-content: center;">
+          <div class="arch-component arch-c-bus" style="max-width: 400px; width: 100%;">
+            <div class="arch-component-name">HTTP Bus</div>
+            <div class="arch-component-detail">Message routing, agent registry, capability dispatch, inbox/ack. All agents register here and communicate through here.</div>
+            <div class="arch-component-cmd">cmd/techtransfer-agency</div>
+          </div>
+        </div>
+
+        <div class="arch-shared-bar">
+          <div class="arch-component arch-c-shared" style="max-width: none;">
+            <div class="arch-component-name">pkg/busclient</div>
+            <div class="arch-component-detail">Shared Go module &mdash; register, heartbeat, poll, ack, respond. Imported by all agents via git-tagged module path.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow: bus ↔ agents -->
+      <div class="arch-flow">
+        <div class="arch-arrow">
+          <div class="arch-arrow-head-up"></div>
+          <div class="arch-arrow-line" style="height: 12px;"></div>
+          <div class="arch-arrow-head"></div>
+          <div class="arch-arrow-label">HTTP / HMAC-SHA256</div>
+        </div>
+      </div>
+
+      <!-- UTILITY AGENTS -->
+      <div class="arch-section arch-section--utility" style="margin-bottom: 14px;">
+        <span class="arch-section-label">Utility Agents</span>
+
+        <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+          <div class="arch-component arch-c-extractor" style="flex: 1; max-width: 300px;">
+            <div class="arch-component-name">PDF Extractor</div>
+            <div class="arch-component-detail">Extracts text from uploaded PDFs and forwards to downstream agents</div>
+            <div class="arch-component-cmd">cmd/patent-extractor</div>
+            <div class="arch-instances">
+              <span class="arch-instance">patent-screen</span>
+              <span class="arch-instance">prior-art-search</span>
+              <span class="arch-instance">market-analysis</span>
+            </div>
+          </div>
+          <div class="arch-component arch-c-renderer" style="flex: 1; max-width: 300px; opacity: 1;">
+            <div class="arch-component-name">Report Renderer</div>
+            <div class="arch-component-detail">Converts agent markdown reports to branded PDF output</div>
+            <div class="arch-component-cmd">cmd/render-patent-report</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrows: extractor ↓ to SMEs, SMEs ↑ to renderer -->
+      <div style="display: flex; justify-content: center; gap: 120px; padding: 4px 0;">
+        <div class="arch-arrow">
+          <div class="arch-arrow-line" style="height: 14px;"></div>
+          <div class="arch-arrow-head"></div>
+          <div class="arch-arrow-label">extracted text</div>
+        </div>
+        <div class="arch-arrow">
+          <div class="arch-arrow-head-up"></div>
+          <div class="arch-arrow-line" style="height: 14px;"></div>
+          <div class="arch-arrow-label">markdown reports</div>
+        </div>
+      </div>
+
+      <!-- BOUNDARY -->
+      <div class="arch-boundary" style="padding: 8px 0;">
+        <div class="arch-boundary-line"></div>
+        <div class="arch-boundary-badge">agents below may be owned by different contributors</div>
+        <div class="arch-boundary-line"></div>
+      </div>
+
+      <!-- SUBJECT MATTER EXPERT AGENTS -->
+      <div class="arch-section arch-section--sme">
+        <span class="arch-section-label">Subject Matter Expert Agents</span>
+
+        <div class="arch-sme-grid">
+
+          <!-- TDG sub-group -->
+          <div class="arch-subgroup arch-subgroup--tdg">
+            <span class="arch-subgroup-label">UCLA TDG &mdash; tdg-ip-agents</span>
+            <div class="arch-subgroup-agents">
+              <div class="arch-component arch-c-patent">
+                <div class="arch-component-name">Patent Screen</div>
+                <div class="arch-component-detail">Multi-stage LLM &mdash; Alice/Mayo, novelty, utility &rarr; PI-readable report</div>
+                <div class="arch-component-cmd">cmd/patent-screen</div>
+              </div>
+              <div class="arch-component arch-c-prior">
+                <div class="arch-component-name">Prior Art Search</div>
+                <div class="arch-component-detail">PatentsView API, LLM relevance assessment &rarr; report</div>
+                <div class="arch-component-cmd">cmd/prior-art-search</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Market Analysis sub-group -->
+          <div class="arch-subgroup arch-subgroup--market">
+            <span class="arch-subgroup-label">Market Analysis</span>
+            <div class="arch-subgroup-agents">
+              <div class="arch-component arch-c-market" style="width: 100%;">
+                <div class="arch-component-name">Market Analysis</div>
+                <div class="arch-component-detail">LLM analysis &rarr; auditable market report</div>
+                <div class="arch-component-cmd">cmd/market-analysis</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- KEY DESIGN POINTS -->
+    <div class="arch-notes">
+      <h2>Key Design Points</h2>
+      <ul>
+        <li>All agent communication goes through the bus &mdash; no direct agent-to-agent calls</li>
+        <li>The Operator is an agent &mdash; it registers with the bus and sends messages like any other agent</li>
+        <li>PDF Extractor is one binary deployed as multiple instances, configured by <code>-next-agent-id</code> and <code>-capability</code> flags at deploy time</li>
+        <li>Subject matter expert agents can be contributed by different teams &mdash; they only need <code>pkg/busclient</code> and a capability name</li>
+        <li>Each agent authenticates with its own HMAC-SHA256 secret &mdash; the bus and each agent share a key that signs every request, proving identity without transmitting passwords. HMAC verifies <em>who sent</em> a message and that it wasn't tampered with. It does not encrypt message content &mdash; agent-to-bus traffic runs on a private Docker network today; remote deployment would add TLS for encryption.</li>
+        <li>Capability names (<code>patent-screen</code>, <code>prior-art-search</code>) are the protocol contract &mdash; bus and agents agree on strings, nothing else</li>
+      </ul>
+    </div>
+
+    <div class="vision-footer">
+      <a href="/" class="btn-back">&larr; Back to submissions</a>
+    </div>
+  </div>
+</body>
+</html>
