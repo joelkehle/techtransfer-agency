@@ -24,7 +24,7 @@ If you have a bug fix or improvement to the bus itself, open an issue first to d
 
 ## Agent Contributions
 
-If you're contributing an agent (not code to the bus), your agent runs under its own license — but it must be either open source or source-available so the code can be inspected. See the store terms for details on agent licensing requirements.
+If you're contributing an agent (not code to the bus), your agent must use the PolyForm Noncommercial License. For initial simplicity, the ecosystem runs under a single license. If your use case requires a different arrangement, reach out at joel.kehle@tdg.ucla.edu before submitting.
 
 ## Questions
 

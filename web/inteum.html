@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inteum Access — IP Agency</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='30' y='30' width='40' height='40' rx='5' fill='%2392400e' transform='rotate(45 50 50)'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Young+Serif&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card card-wide inteum-content">
+    <a href="/vision.html" class="back-link">&larr; Back to expert ecosystem</a>
+
+    <h1>Inteum Access</h1>
+    <p class="subtitle">Read and write access by agent role</p>
+
+    <div class="inteum-intro">
+      <p>Inteum is UCLA TDG's IP management database. The IP Agency reads from and writes to Inteum to eliminate manual data entry, ensure agents work from authoritative records, and store evaluation outputs alongside the cases that generated them.</p>
+      <p>The table below maps each agent role to the Inteum record types it needs to access. Today, no integration exists — all disclosures are uploaded manually. Phase 1 asks for read-only access to Invention Disclosures only.</p>
+    </div>
+
+    <div class="phase-note">
+      <strong>What we're asking for today (Phase 1):</strong> Read-only access to Invention Disclosures. This lets the system pull a disclosure by case number instead of requiring manual PDF upload. Non-destructive. No writes. Everything else in this table is future state.
+    </div>
+
+    <div class="inteum-legend">
+      <div class="legend-item">
+        <span class="access-rw">R/W</span>
+        <span>Read and write</span>
+      </div>
+      <div class="legend-item">
+        <span class="access-r">R</span>
+        <span>Read only</span>
+      </div>
+      <div class="legend-item">
+        <span class="access-none">—</span>
+        <span>No access needed</span>
+      </div>
+      <div class="legend-item">
+        <span class="phase-badge phase-1">Phase 1</span>
+        <span>Requested today</span>
+      </div>
+      <div class="legend-item">
+        <span class="phase-badge phase-future">Future</span>
+        <span>Not yet requested</span>
+      </div>
+    </div>
+
+    <div class="inteum-table-wrap">
+      <table class="inteum-matrix">
+        <thead>
+          <tr>
+            <th>Agent Role</th>
+            <th>Invention<br>Disclosures</th>
+            <th>Patents</th>
+            <th>Agreements</th>
+            <th>Companies</th>
+            <th>Marketing<br>Projects</th>
+            <th>People</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="group-header">
+            <td colspan="7">Prior Art &amp; Patentability</td>
+          </tr>
+          <tr>
+            <td>Patent Eligibility Screen</td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr>
+            <td>Prior Art Search</td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr>
+            <td>Patentability Opinion</td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+
+          <tr class="group-header">
+            <td colspan="7">Technical Assessment</td>
+          </tr>
+          <tr>
+            <td>Technical Domain Review</td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr>
+            <td>Competitive Landscape</td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+
+          <tr class="group-header">
+            <td colspan="7">Commercial Viability</td>
+          </tr>
+          <tr>
+            <td>Non-Confidential Description</td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr>
+            <td>Market Analysis</td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr>
+            <td>Licensee Identification</td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr>
+            <td>Marketing Target Generator</td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+          </tr>
+          <tr>
+            <td>Financial Valuation</td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+
+          <tr class="group-header">
+            <td colspan="7">Regulatory &amp; Legal</td>
+          </tr>
+          <tr>
+            <td>Regulatory Pathway</td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr>
+            <td>IP Ownership &amp; Compliance</td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+
+          <tr class="group-header">
+            <td colspan="7">Strategic</td>
+          </tr>
+          <tr>
+            <td>Commercialization Strategy</td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+          </tr>
+
+          <tr class="group-header">
+            <td colspan="7">Proactive</td>
+          </tr>
+          <tr>
+            <td>Patent Deadline Watcher</td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="vision-footer">
+      <nav class="site-nav">
+        <div class="site-nav-links">
+          <a href="/">&larr; Submissions</a>
+          <a href="/vision.html">Expert Ecosystem</a>
+          <a href="/architecture.html">Architecture</a>
+          <a href="/inteum.html">Inteum Access</a>
+          <a href="/connect.html">Connect Your Agent</a>
+        </div>
+      </nav>
+      <p class="site-nav-meta">
+        Source Code Repositories:
+        <a href="https://github.com/joelkehle/techtransfer-agency" target="_blank" rel="noopener noreferrer">techtransfer-agency</a>
+        <span class="site-nav-sep" aria-hidden="true">&middot;</span>
+        <a href="https://github.com/joelkehle/tdg-ip-agents" target="_blank" rel="noopener noreferrer">tdg-ip-agents</a>
+      </p>
+      <div class="site-nav-label">IP Agency</div>
+    </div>
+  </div>
+</body>
+</html>

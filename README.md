@@ -267,4 +267,4 @@ You may view, use, and modify the source for any noncommercial purpose. This inc
 
 Commercial use requires a separate license. Contact joel@techtransfer.agency for commercial licensing inquiries.
 
-Agents that connect to the bus operate under their own licenses but must be open source or source-available per the store terms.
+Agents that connect to the bus are currently required to use the PolyForm Noncommercial License. This keeps the ecosystem under a single consistent license while the platform is early. Other licensing arrangements may be considered as the ecosystem matures — contact joel.kehle@tdg.ucla.edu to discuss.

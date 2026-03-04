@@ -442,6 +442,241 @@ section.vision-section:nth-of-type(5) { animation-delay: 0.33s; }
   text-decoration: underline;
 }
 
+.site-nav {
+  margin-top: 0.9rem;
+  display: flex;
+  justify-content: center;
+}
+
+.site-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  justify-content: center;
+}
+
+.site-nav a {
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.site-nav a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.site-nav-label {
+  margin-top: 0.45rem;
+  display: block;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+}
+
+.site-nav-meta {
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--ink-4);
+  line-height: 1.45;
+  text-align: center;
+}
+
+.site-nav-meta a {
+  color: var(--ink-3);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.site-nav-meta a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.site-nav-sep {
+  color: var(--ink-5);
+  margin: 0 0.3rem;
+}
+
+/* ===== Inteum Page ===== */
+.inteum-content .inteum-intro {
+  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.inteum-content .inteum-intro p {
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.inteum-content .inteum-intro p + p {
+  margin-top: 0.6rem;
+}
+
+.inteum-content .phase-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.inteum-content .phase-1 {
+  background: var(--live-bg);
+  color: var(--live);
+  border: 1px solid var(--live-border);
+}
+
+.inteum-content .phase-future {
+  background: var(--surface-alt);
+  color: var(--ink-3);
+  border: 1px solid var(--border);
+}
+
+.inteum-content .phase-note {
+  margin-bottom: 2rem;
+  padding: 1rem 1.25rem;
+  background: var(--accent-wash);
+  border: 1px solid #fcd34d;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.inteum-content .phase-note strong {
+  color: var(--ink);
+}
+
+.inteum-content .inteum-legend {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.inteum-content .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--ink-3);
+}
+
+.inteum-content .inteum-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.inteum-content table.inteum-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.inteum-content table.inteum-matrix thead tr {
+  border-bottom: 2px solid var(--border);
+}
+
+.inteum-content table.inteum-matrix th {
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  padding: 0.5rem 0.85rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.inteum-content table.inteum-matrix th:first-child {
+  text-align: left;
+  min-width: 210px;
+}
+
+.inteum-content table.inteum-matrix tbody tr {
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.1s;
+}
+
+.inteum-content table.inteum-matrix tbody tr:hover {
+  background: var(--surface-alt);
+}
+
+.inteum-content table.inteum-matrix td {
+  padding: 0.6rem 0.85rem;
+  color: var(--ink-2);
+  vertical-align: middle;
+  text-align: center;
+}
+
+.inteum-content table.inteum-matrix td:first-child {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.inteum-content .group-header td {
+  padding: 1rem 0.85rem 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  border-bottom: none !important;
+  background: none !important;
+}
+
+.inteum-content .access-rw,
+.inteum-content .access-r {
+  display: inline-block;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+}
+
+.inteum-content .access-rw {
+  background: var(--live-bg);
+  color: var(--live);
+  border: 1px solid var(--live-border);
+}
+
+.inteum-content .access-r {
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid #fcd34d;
+}
+
+.inteum-content .access-none {
+  color: var(--ink-5);
+  font-size: 0.75rem;
+}
+
 /* ===== Connect Page ===== */
 .connect-section {
   margin-bottom: 2.25rem;
@@ -651,13 +886,6 @@ section.vision-section:nth-of-type(5) { animation-delay: 0.33s; }
   height: 14px;
   border: 1.5px solid var(--border);
   border-radius: 3px;
-}
-
-/* Footer links */
-.footer-links {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
 }
 
 /* ===== Drop zone ===== */
@@ -1273,5 +1501,32 @@ button:active:not(:disabled) {
 
   .services-overview {
     padding: 1.25rem;
+  }
+
+  .inteum-content .inteum-intro,
+  .inteum-content .phase-note {
+    padding: 1rem;
+  }
+
+  .inteum-content .inteum-legend {
+    gap: 0.75rem 1rem;
+    padding: 0.75rem;
+  }
+
+  .inteum-content table.inteum-matrix {
+    font-size: 0.78rem;
+  }
+
+  .inteum-content table.inteum-matrix th,
+  .inteum-content table.inteum-matrix td {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .site-nav {
+    margin-top: 0.8rem;
+  }
+
+  .site-nav-meta {
+    margin-top: 0.5rem;
   }
 }
