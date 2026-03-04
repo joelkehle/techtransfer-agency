@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joelkehle/techtransfer-agency/internal/patentscreen"
 	"github.com/joelkehle/techtransfer-agency/pkg/busclient"
 )
 
@@ -70,6 +71,7 @@ func newServer(bridge *Bridge, store *SubmissionStore, webDir, uploadDir string,
 	mux.HandleFunc("/submit", s.handleSubmit)
 	mux.HandleFunc("/status/", s.handleStatus)
 	mux.HandleFunc("/report/", s.handleReport)
+	mux.HandleFunc("/report-build", s.handleReportBuild)
 	mux.HandleFunc("/report-pdf/", s.handleReportPDF)
 	mux.HandleFunc("/report-pdf-inline", s.handleReportPDFInline)
 	mux.HandleFunc("/", s.handleRoot)
@@ -280,9 +282,138 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	report := s.formatWorkflowReport(workflow, ws.Report)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
-	_, _ = w.Write([]byte(ws.Report))
+	_, _ = w.Write([]byte(report))
+}
+
+type reportBuildRequest struct {
+	Workflow string          `json:"workflow"`
+	Envelope json.RawMessage `json:"envelope"`
+}
+
+func (s *Server) handleReportBuild(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req reportBuildRequest
+	body, err := io.ReadAll(io.LimitReader(r.Body, 10<<20))
+	if err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		writeError(w, 400, "invalid JSON body")
+		return
+	}
+
+	workflow := normalizeWorkflowCapability(req.Workflow)
+	if workflow == "" {
+		writeError(w, 400, "workflow is required")
+		return
+	}
+	if len(req.Envelope) == 0 {
+		writeError(w, 400, "envelope is required")
+		return
+	}
+
+	switch workflow {
+	case "patent-screen":
+		s.handlePatentScreenReportBuild(w, req.Envelope)
+		return
+	case "prior-art-search", "prior-art":
+		s.handlePriorArtReportBuild(w, req.Envelope)
+		return
+	default:
+		writeError(w, 400, "unsupported workflow for report build")
+		return
+	}
+}
+
+func (s *Server) handlePatentScreenReportBuild(w http.ResponseWriter, envelopeRaw json.RawMessage) {
+	var env patentscreen.ResponseEnvelope
+	if err := json.Unmarshal(envelopeRaw, &env); err != nil {
+		writeError(w, 400, "invalid patent-screen envelope")
+		return
+	}
+	rebuilt, err := patentscreen.RebuildResponseFromEnvelope(env)
+	if err != nil {
+		writeError(w, 400, "failed to rebuild patent-screen report")
+		return
+	}
+	rebuiltRaw, err := json.Marshal(rebuilt)
+	if err != nil {
+		writeError(w, 500, "failed to encode rebuilt report")
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"workflow":        "patent-screen",
+		"report_markdown": rebuilt.ReportMarkdown,
+		"report_raw":      string(rebuiltRaw),
+	})
+}
+
+func (s *Server) handlePriorArtReportBuild(w http.ResponseWriter, envelopeRaw json.RawMessage) {
+	var env map[string]any
+	if err := json.Unmarshal(envelopeRaw, &env); err != nil {
+		writeError(w, 400, "invalid prior-art-search envelope")
+		return
+	}
+	reportMarkdown := stringValue(env["report_markdown"])
+	if rebuilt, ok := buildPriorArtReportMarkdown(env); ok {
+		reportMarkdown = rebuilt
+		env["report_markdown"] = rebuilt
+	} else {
+		reportMarkdown = normalizeReportMarkdown(env, reportMarkdown)
+		if strings.TrimSpace(reportMarkdown) != "" {
+			env["report_markdown"] = reportMarkdown
+		}
+	}
+	if strings.TrimSpace(reportMarkdown) == "" {
+		writeError(w, 400, "prior-art-search envelope missing report_markdown")
+		return
+	}
+	normalizedRaw, err := json.Marshal(env)
+	if err != nil {
+		writeError(w, 500, "failed to encode report envelope")
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"workflow":        "prior-art-search",
+		"report_markdown": reportMarkdown,
+		"report_raw":      string(normalizedRaw),
+	})
+}
+
+func (s *Server) formatWorkflowReport(workflow, raw string) string {
+	normalizedWorkflow := normalizeWorkflowCapability(workflow)
+	if normalizedWorkflow != "prior-art-search" && normalizedWorkflow != "prior-art" {
+		return raw
+	}
+
+	var env map[string]any
+	if err := json.Unmarshal([]byte(raw), &env); err != nil {
+		return raw
+	}
+
+	if rebuilt, ok := buildPriorArtReportMarkdown(env); ok {
+		env["report_markdown"] = rebuilt
+	} else {
+		existing := stringValue(env["report_markdown"])
+		normalized := normalizeReportMarkdown(env, existing)
+		if strings.TrimSpace(normalized) != "" && normalized != existing {
+			env["report_markdown"] = normalized
+		}
+	}
+
+	out, err := json.Marshal(env)
+	if err != nil {
+		return raw
+	}
+	return string(out)
 }
 
 func (s *Server) handleReportPDF(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +429,8 @@ func (s *Server) handleReportPDF(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	pdf, err := s.pdfRenderer.Render(r.Context(), ws.Report)
+	report := s.formatWorkflowReport(workflow, ws.Report)
+	pdf, err := s.pdfRenderer.Render(r.Context(), report)
 	if err != nil {
 		log.Printf("render report pdf failed token=%s workflow=%s err=%v", token, workflow, err)
 		writeError(w, 500, "failed to render pdf")

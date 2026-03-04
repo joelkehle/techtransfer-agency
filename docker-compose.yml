@@ -3,10 +3,11 @@ services:
     build: .
     command: ["techtransfer-agency"]
     ports:
-      - "8080:8080"
+      - "${BUS_PORT:-8080}:8080"
     environment:
       PORT: "8080"
       STATE_FILE: "/data/state.json"
+      AGENT_ALLOWLIST: ${AGENT_ALLOWLIST:-tta-operator,tta-patent-extractor,tta-prior-art-extractor,tta-market-extractor,tta-patent-screen,tta-prior-art-search,tta-market-analysis}
     volumes:
       - bus-data:/data
     networks:
@@ -24,12 +25,16 @@ services:
       - operator
       - -bus-url=http://bus:8080
       - -addr=:8090
+      - -agent-id=${OPERATOR_AGENT_ID:-tta-operator}
       - -web-dir=/app/web
       - -upload-dir=/uploads
     ports:
-      - "3000:8090"
+      - "${OPERATOR_PORT:-3000}:8090"
     environment:
       OPERATOR_AGENT_SECRET: ${OPERATOR_AGENT_SECRET:?OPERATOR_AGENT_SECRET is required}
+      WORKFLOW_TARGET_PATENT_SCREEN: ${PATENT_EXTRACTOR_AGENT_ID:-tta-patent-extractor}
+      WORKFLOW_TARGET_PRIOR_ART_SEARCH: ${PRIOR_ART_EXTRACTOR_AGENT_ID:-tta-prior-art-extractor}
+      WORKFLOW_TARGET_MARKET_ANALYSIS: ${MARKET_EXTRACTOR_AGENT_ID:-tta-market-extractor}
     volumes:
       - uploads:/uploads
       - ./web:/app/web:ro
@@ -44,7 +49,8 @@ services:
     command:
       - patent-extractor
       - -bus-url=http://bus:8080
-      - -next-agent-id=patent-screen
+      - -agent-id=${PATENT_EXTRACTOR_AGENT_ID:-tta-patent-extractor}
+      - -next-agent-id=${PATENT_SCREEN_AGENT_ID:-tta-patent-screen}
     environment:
       PATENT_EXTRACTOR_AGENT_SECRET: ${PATENT_EXTRACTOR_AGENT_SECRET:?PATENT_EXTRACTOR_AGENT_SECRET is required}
     volumes:
@@ -60,10 +66,10 @@ services:
     command:
       - patent-extractor
       - -bus-url=http://bus:8080
-      - -agent-id=prior-art-extractor
+      - -agent-id=${PRIOR_ART_EXTRACTOR_AGENT_ID:-tta-prior-art-extractor}
       - -capability=prior-art-search
       - -secret-env=PRIOR_ART_EXTRACTOR_AGENT_SECRET
-      - -next-agent-id=prior-art-search
+      - -next-agent-id=${PRIOR_ART_SEARCH_AGENT_ID:-tta-prior-art-search}
     environment:
       PRIOR_ART_EXTRACTOR_AGENT_SECRET: ${PRIOR_ART_EXTRACTOR_AGENT_SECRET:?PRIOR_ART_EXTRACTOR_AGENT_SECRET is required}
     volumes:
@@ -79,10 +85,10 @@ services:
     command:
       - patent-extractor
       - -bus-url=http://bus:8080
-      - -agent-id=market-extractor
+      - -agent-id=${MARKET_EXTRACTOR_AGENT_ID:-tta-market-extractor}
       - -capability=market-analysis
       - -secret-env=MARKET_EXTRACTOR_AGENT_SECRET
-      - -next-agent-id=market-analysis
+      - -next-agent-id=${MARKET_ANALYSIS_AGENT_ID:-tta-market-analysis}
     environment:
       MARKET_EXTRACTOR_AGENT_SECRET: ${MARKET_EXTRACTOR_AGENT_SECRET:?MARKET_EXTRACTOR_AGENT_SECRET is required}
     volumes:
@@ -98,7 +104,7 @@ services:
     command:
       - market-analysis
       - -bus-url=http://bus:8080
-      - -agent-id=market-analysis
+      - -agent-id=${MARKET_ANALYSIS_AGENT_ID:-tta-market-analysis}
     environment:
       MARKET_ANALYSIS_AGENT_SECRET: ${MARKET_ANALYSIS_AGENT_SECRET:?MARKET_ANALYSIS_AGENT_SECRET is required}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
@@ -114,7 +120,7 @@ services:
     image: ghcr.io/joelkehle/tdg-ip-agents/patent-screen:${TDG_IP_AGENTS_TAG:-latest}
     command:
       - -bus-url=http://bus:8080
-      - -agent-id=patent-screen
+      - -agent-id=${PATENT_SCREEN_AGENT_ID:-tta-patent-screen}
     environment:
       PATENT_SCREEN_AGENT_SECRET: ${PATENT_SCREEN_AGENT_SECRET:?PATENT_SCREEN_AGENT_SECRET is required}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
@@ -130,7 +136,7 @@ services:
     image: ghcr.io/joelkehle/tdg-ip-agents/prior-art-search:${TDG_IP_AGENTS_TAG:-latest}
     command:
       - -bus-url=http://bus:8080
-      - -agent-id=prior-art-search
+      - -agent-id=${PRIOR_ART_SEARCH_AGENT_ID:-tta-prior-art-search}
     environment:
       PRIOR_ART_AGENT_SECRET: ${PRIOR_ART_AGENT_SECRET:?PRIOR_ART_AGENT_SECRET is required}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
@@ -154,3 +160,4 @@ volumes:
 
 networks:
   agentnet:
+    name: ${STACK_NETWORK_NAME:-tta-agentnet}

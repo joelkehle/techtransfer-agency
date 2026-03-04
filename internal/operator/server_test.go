@@ -423,12 +423,294 @@ func TestHandleReportBadPath(t *testing.T) {
 	}
 }
 
+func TestHandleReportBuildPatentScreen(t *testing.T) {
+	handler, _, _ := setupServer(t)
+
+	body := map[string]any{
+		"workflow": "patent-screen",
+		"envelope": map[string]any{
+			"case_id":       "2026-124",
+			"determination": "LIKELY_ELIGIBLE",
+			"pathway":       "B1 — no judicial exception",
+			"stage_outputs": map[string]any{
+				"stage_1": map[string]any{
+					"invention_title":       "Test Invention",
+					"abstract":              "Test abstract",
+					"problem_solved":        "Test problem",
+					"invention_description": "Test description",
+					"novel_elements":        []string{"Element A"},
+					"technology_area":       "Optics",
+					"claims_present":        false,
+					"confidence_score":      0.9,
+					"confidence_reason":     "ok",
+				},
+				"stage_2": map[string]any{
+					"categories":        []string{"MANUFACTURE"},
+					"explanation":       "fits category",
+					"passes_step_1":     true,
+					"confidence_score":  0.8,
+					"confidence_reason": "ok",
+				},
+				"stage_3": map[string]any{
+					"recites_exception": false,
+					"reasoning":         "none",
+					"mpep_reference":    "MPEP § 2106.04",
+					"confidence_score":  0.8,
+					"confidence_reason": "ok",
+				},
+				"stage_6": map[string]any{
+					"novelty_concerns":          []string{"none"},
+					"non_obviousness_concerns":  []string{"none"},
+					"prior_art_search_priority": "HIGH",
+					"reasoning":                 "reasoning",
+					"confidence_score":          0.8,
+					"confidence_reason":         "ok",
+				},
+			},
+			"pipeline_metadata": map[string]any{},
+			"disclaimer":        "test disclaimer",
+		},
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/report-build", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["workflow"] != "patent-screen" {
+		t.Fatalf("expected workflow patent-screen, got %v", resp["workflow"])
+	}
+	if markdown, _ := resp["report_markdown"].(string); strings.TrimSpace(markdown) == "" {
+		t.Fatal("expected non-empty report_markdown")
+	}
+	if raw, _ := resp["report_raw"].(string); !strings.Contains(raw, "report_markdown") {
+		t.Fatal("expected report_raw to include report_markdown field")
+	}
+}
+
+func TestHandleReportBuildPriorArt(t *testing.T) {
+	handler, _, _ := setupServer(t)
+
+	body := map[string]any{
+		"workflow": "prior-art-search",
+		"envelope": map[string]any{
+			"agent":         "prior-art-search",
+			"case_id":       "SUB-123",
+			"ucla_case_id":  "2026-124",
+			"pi_name":       "Dr. Jane Smith",
+			"determination": "CLEAR_FIELD",
+			"structured_results": map[string]any{
+				"search_strategy": map[string]any{
+					"invention_title": "ROCIT",
+					"novel_elements": []any{
+						map[string]any{"id": "NE1", "description": "Long-read methylation classification"},
+					},
+				},
+				"patents_found": map[string]any{
+					"queries_executed": 1,
+					"total_hits_by_query": map[string]any{
+						"Q1": 2,
+					},
+					"patents": []any{
+						map[string]any{
+							"patent_id":    "12345678",
+							"patent_title": "DNA methylation classification",
+							"patent_date":  "2025-01-01",
+						},
+					},
+				},
+				"assessments": []any{
+					map[string]any{
+						"patent_id":              "12345678",
+						"relevance":              "MEDIUM",
+						"overlap_description":    "Similar objective",
+						"novel_elements_covered": []any{"NE1"},
+					},
+				},
+			},
+			"metadata": map[string]any{
+				"total_patents_retrieved": 10,
+				"total_patents_assessed":  5,
+			},
+		},
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/report-build", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["workflow"] != "prior-art-search" {
+		t.Fatalf("expected workflow prior-art-search, got %v", resp["workflow"])
+	}
+	md, _ := resp["report_markdown"].(string)
+	if !strings.Contains(md, "## How Broad The Search Was") {
+		t.Fatalf("expected rebuilt report markdown, got: %v", md)
+	}
+	if !strings.Contains(md, "- **UCLA Case ID:** 2026-124") || !strings.Contains(md, "- **PI:** Dr. Jane Smith") {
+		t.Fatalf("expected case id and PI in report markdown, got: %v", md)
+	}
+	if strings.Contains(md, "- Case ID:") {
+		t.Fatalf("did not expect inline case-id bullets in rebuilt markdown: %v", md)
+	}
+}
+
+func TestHandleReportBuildUnsupportedWorkflow(t *testing.T) {
+	handler, _, _ := setupServer(t)
+
+	body := map[string]any{
+		"workflow": "market-analysis",
+		"envelope": map[string]any{"report_markdown": "x"},
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/report-build", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 400 {
+		t.Fatalf("expected 400, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleReportBuildPatentScreenInvalidEnvelope(t *testing.T) {
+	handler, _, _ := setupServer(t)
+
+	body := map[string]any{
+		"workflow": "patent-screen",
+		"envelope": map[string]any{
+			"case_id":           "2026-124",
+			"determination":     "LIKELY_ELIGIBLE",
+			"pathway":           "B1 — no judicial exception",
+			"stage_outputs":     map[string]any{},
+			"pipeline_metadata": map[string]any{},
+		},
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/report-build", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 400 {
+		t.Fatalf("expected 400, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleReportFormatsPriorArtStructuredReport(t *testing.T) {
+	handler, store, _ := setupServer(t)
+	sub := store.Create("case-prior-art-report", []string{"prior-art-search"})
+	store.SetWorkflowIDs(sub.Token, "prior-art-search", "conv-prior-art", "req-1")
+
+	env := map[string]any{
+		"agent":           "prior-art-search",
+		"case_id":         "SUB-123",
+		"ucla_case_id":    "2026-124",
+		"pi_name":         "Dr. Jane Smith",
+		"determination":   "CLEAR_FIELD",
+		"report_markdown": "# Prior Art Search Report\n\n- Case ID: SUB-123\n\nlegacy",
+		"structured_results": map[string]any{
+			"search_strategy": map[string]any{
+				"invention_title": "ROCIT",
+				"novel_elements": []any{
+					map[string]any{"id": "NE1", "description": "Long-read methylation classification"},
+				},
+			},
+			"patents_found": map[string]any{
+				"queries_executed": 1,
+				"total_hits_by_query": map[string]any{
+					"Q1": 2,
+				},
+			},
+			"assessments": []any{},
+		},
+		"metadata": map[string]any{
+			"total_patents_retrieved": 2,
+			"total_patents_assessed":  0,
+		},
+	}
+	raw, err := json.Marshal(env)
+	if err != nil {
+		t.Fatalf("marshal envelope: %v", err)
+	}
+	store.CompleteWorkflow("conv-prior-art", string(raw))
+
+	req := httptest.NewRequest(http.MethodGet, "/report/"+sub.Token+"/prior-art-search", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &parsed); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	md := stringValue(parsed["report_markdown"])
+	if !strings.Contains(md, "## How Broad The Search Was") {
+		t.Fatalf("expected formatted prior-art markdown, got: %s", md)
+	}
+	if !strings.Contains(md, "- **UCLA Case ID:** 2026-124") || !strings.Contains(md, "- **PI:** Dr. Jane Smith") {
+		t.Fatalf("expected case id and PI in formatted markdown, got: %s", md)
+	}
+	if strings.Contains(md, "- Case ID:") {
+		t.Fatalf("did not expect inline case-id bullet after formatting: %s", md)
+	}
+}
+
 type mockPDFRenderer struct {
 	pdf []byte
 	err error
 }
 
 func (m mockPDFRenderer) Render(_ context.Context, _ string) ([]byte, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.pdf, nil
+}
+
+type capturePDFRenderer struct {
+	pdf        []byte
+	err        error
+	lastReport string
+}
+
+func (m *capturePDFRenderer) Render(_ context.Context, report string) ([]byte, error) {
+	m.lastReport = report
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -485,6 +767,100 @@ func TestHandleReportPDFUnknownToken(t *testing.T) {
 
 	if rr.Code != 404 {
 		t.Fatalf("expected 404, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleReportPDFFormatsPriorArtStructuredReport(t *testing.T) {
+	agents := []map[string]any{
+		{"agent_id": "prior-art", "capabilities": []string{"prior-art-search"}, "status": "active"},
+	}
+	bus := fakeBusServer(t, agents)
+	t.Cleanup(bus.Close)
+
+	store := NewSubmissionStore()
+	bridge := NewBridge(bus.URL, "operator", "secret", store)
+	renderer := &capturePDFRenderer{pdf: []byte("%PDF-1.4\nmock\n")}
+	handler := newServer(bridge, store, t.TempDir(), t.TempDir(), renderer)
+
+	sub := store.Create("case-pdf-prior-art", []string{"prior-art-search"})
+	store.SetWorkflowIDs(sub.Token, "prior-art-search", "conv-pdf-prior-art", "req-1")
+	env := map[string]any{
+		"agent":         "prior-art-search",
+		"case_id":       "SUB-123",
+		"ucla_case_id":  "2026-124",
+		"pi_name":       "Dr. Jane Smith",
+		"determination": "CLEAR_FIELD",
+		"report_markdown": strings.Join([]string{
+			"# Prior Art Search Report",
+			"",
+			"- Case ID: SUB-123",
+			"- Invention: ROCIT",
+			"- Date: 2026-03-04T02:48:53Z",
+			"",
+			"legacy",
+		}, "\n"),
+		"structured_results": map[string]any{
+			"search_strategy": map[string]any{
+				"invention_title":   "ROCIT",
+				"invention_summary": "Classifies DNA reads from methylation patterns.",
+				"novel_elements": []any{
+					map[string]any{"id": "NE1", "description": "Long-read methylation classification"},
+				},
+				"query_strategies": []any{
+					map[string]any{"id": "Q1"},
+				},
+			},
+			"patents_found": map[string]any{
+				"queries_executed": 1,
+				"total_hits_by_query": map[string]any{
+					"Q1": 2,
+				},
+				"patents": []any{
+					map[string]any{
+						"patent_id":    "12345678",
+						"patent_title": "DNA methylation classification",
+						"patent_date":  "2025-01-01",
+					},
+				},
+			},
+			"assessments": []any{
+				map[string]any{
+					"patent_id":              "12345678",
+					"relevance":              "MEDIUM",
+					"overlap_description":    "Similar objective with partial overlap.",
+					"novel_elements_covered": []any{"NE1"},
+				},
+			},
+		},
+		"metadata": map[string]any{
+			"total_patents_retrieved": 10,
+			"total_patents_assessed":  5,
+		},
+	}
+	raw, err := json.Marshal(env)
+	if err != nil {
+		t.Fatalf("marshal envelope: %v", err)
+	}
+	store.CompleteWorkflow("conv-pdf-prior-art", string(raw))
+
+	req := httptest.NewRequest(http.MethodGet, "/report-pdf/"+sub.Token+"/prior-art-search", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if renderer.lastReport == "" {
+		t.Fatal("expected renderer input report to be captured")
+	}
+	if !strings.Contains(renderer.lastReport, "## How Broad The Search Was") {
+		t.Fatalf("expected normalized prior-art report in renderer input, got: %s", renderer.lastReport)
+	}
+	if !strings.Contains(renderer.lastReport, "## Traceability Trail (Stage Inputs and Outputs)") {
+		t.Fatalf("expected traceability section in renderer input, got: %s", renderer.lastReport)
+	}
+	if strings.Contains(renderer.lastReport, "- Case ID: SUB-123") {
+		t.Fatalf("did not expect legacy header bullets in renderer input, got: %s", renderer.lastReport)
 	}
 }
 

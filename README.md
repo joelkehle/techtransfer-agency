@@ -79,13 +79,31 @@ This infrastructure repo still hosts the PDF extractor and report renderer utili
 
 #### Dev Replay (No LLM Cost)
 
-To iterate report formatting without paying for new model calls, render markdown from a saved patent-screen response envelope JSON:
+The operator UI has a run-mode selector (default: `demo`) for single-service submissions:
+
+- `demo`: skip analysis and return canned report fixture JSON
+- `report-lab`: use canned analysis fixture and rebuild report via `/report-build`
+- `live`: run full live analysis and report generation
+
+Fixtures for `patent-screen` and `prior-art-search` live in `web/fixtures/`.
+
+To rebuild reports from saved envelopes without running live analysis, use:
 
 ```bash
-go run ./cmd/render-patent-report \
+go run ./cmd/report-builder \
+  -workflow patent-screen \
   -input /absolute/path/to/patent-screen-response.json \
   -output /absolute/path/to/report.md \
   -json-output /absolute/path/to/rebuilt-response.json
+```
+
+For prior-art envelopes:
+
+```bash
+go run ./cmd/report-builder \
+  -workflow prior-art-search \
+  -input /absolute/path/to/prior-art-response.json \
+  -output /absolute/path/to/prior-art-report.md
 ```
 
 You can also block accidental live model calls during development:
@@ -105,6 +123,17 @@ Recalibrate baselines intentionally after accepted visual/layout changes:
 ```bash
 make pdf-regression-calibrate
 ```
+
+Capture a real operator report into a replay fixture:
+
+```bash
+./scripts/capture-replay-fixture.sh <token> prior-art-search
+./scripts/capture-replay-fixture.sh <token> patent-screen
+```
+
+Defaults:
+- Operator base URL: `http://localhost:3000` (override with `OPERATOR_BASE_URL`)
+- Output path: `web/fixtures/<workflow>-replay.json`
 
 ### Prior Art Search Agent
 
@@ -151,6 +180,29 @@ curl -fsSL https://github.com/docker/compose/releases/download/v2.27.0/docker-co
   -o ~/.docker/cli-plugins/docker-compose
 chmod +x ~/.docker/cli-plugins/docker-compose
 docker compose version
+```
+
+- Isolate each environment (demo/dev/prod) with a unique bus/network and namespaced agent IDs:
+
+```bash
+# Example (demo)
+export STACK_NETWORK_NAME=tta-demo-agentnet
+export BUS_PORT=18080
+export OPERATOR_PORT=13000
+export OPERATOR_AGENT_ID=demo-operator
+export PATENT_EXTRACTOR_AGENT_ID=demo-patent-extractor
+export PRIOR_ART_EXTRACTOR_AGENT_ID=demo-prior-art-extractor
+export MARKET_EXTRACTOR_AGENT_ID=demo-market-extractor
+export PATENT_SCREEN_AGENT_ID=demo-patent-screen
+export PRIOR_ART_SEARCH_AGENT_ID=demo-prior-art-search
+export MARKET_ANALYSIS_AGENT_ID=demo-market-analysis
+export AGENT_ALLOWLIST=demo-operator,demo-patent-extractor,demo-prior-art-extractor,demo-market-extractor,demo-patent-screen,demo-prior-art-search,demo-market-analysis
+```
+
+- Before `up`, remove orphan/stale services from previous runs:
+
+```bash
+docker-compose down --remove-orphans
 ```
 
 - To redeploy patent-screen pipeline services without restarting `bus`:
@@ -204,6 +256,8 @@ make gate
 - `docs/PATENT_ELIGIBILITY_SCREEN_SPEC.md`
 - `docs/PRIOR_ART_SEARCH_SPEC_v3.2.md`
 - `docs/PRIOR_ART_SEARCH_IMPLEMENTATION_PROMPT.md` (implementation history)
+- `docs/ARCHITECTURE.md`
+- `docs/DECISIONS_AND_BACKLOG.md` (current migration decisions + prioritized follow-ups)
 
 ## License
 

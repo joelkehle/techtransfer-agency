@@ -776,6 +776,45 @@ legend {
   font-style: italic;
 }
 
+.demo-banner {
+  border: 1px solid var(--live-border);
+  background: var(--live-bg);
+  color: var(--live);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.85rem;
+}
+
+.mode-picker {
+  margin-bottom: 1rem;
+}
+
+.mode-picker label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.mode-picker select {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.84rem;
+  background: #fff;
+  color: var(--ink);
+}
+
+.mode-picker select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(146, 64, 14, 0.08);
+}
+
 .workflow-option {
   display: flex;
   align-items: flex-start;
@@ -787,7 +826,8 @@ legend {
   border-top: 1px solid var(--border-light);
 }
 
-.workflow-option input[type="checkbox"] {
+.workflow-option input[type="checkbox"],
+.workflow-option input[type="radio"] {
   margin-top: 0.2rem;
   accent-color: var(--accent);
   flex-shrink: 0;

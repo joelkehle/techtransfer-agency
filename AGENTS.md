@@ -3,6 +3,7 @@ Public repository note: local/private agent instructions are intentionally not i
 For contributor guidance, see `CONTRIBUTING.md`.
 
 ## Local Ops Notes (Copied from TDG Agent Guidance)
+- App access URL: `https://techtransfer.agency/`
 - Secrets workflow: prefer Infisical-backed execution for commands that require secrets.
 - Infisical login flow:
   - `infisical login --domain https://app.infisical.com/api`

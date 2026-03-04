@@ -8,6 +8,8 @@
   var fileInput = document.getElementById("file-input");
   var fileNameEl = document.getElementById("file-name");
   var workflowCheckboxes = document.getElementById("workflow-checkboxes");
+  var runModeSelect = document.getElementById("run-mode-select");
+  var modeBanner = document.getElementById("mode-banner");
   var submitError = document.getElementById("submit-error");
   var btnSubmit = document.getElementById("btn-submit");
   var statusToken = document.getElementById("status-token");
@@ -23,7 +25,12 @@
   var workflows = [];
   var pollTimer = null;
   var replayReports = {};
-  var replayReportURL = "/fixtures/patent-screen-replay.json";
+  var replayFixtures = {
+    "patent-screen": "/fixtures/patent-screen-replay.json",
+    "prior-art-search": "/fixtures/prior-art-search-replay.json"
+  };
+  var runModeStorageKey = "ipAgencyRunMode";
+  var runMode = loadRunModePreference();
 
   // --- Workflow Fetching ---
 
@@ -56,7 +63,7 @@
       if (wf.available === false) continue;
       html +=
         '<label class="workflow-option">' +
-        '<input type="checkbox" name="workflow" value="' + escapeAttr(wf.capability) + '">' +
+        '<input type="radio" name="workflow" value="' + escapeAttr(wf.capability) + '">' +
         "<div>" +
         '<div class="wf-label">' + escapeHtml(wf.label || wf.capability) + "</div>" +
         (wf.description ? '<div class="wf-desc">' + escapeHtml(wf.description) + "</div>" : "") +
@@ -72,8 +79,8 @@
 
     workflowCheckboxes.innerHTML = html;
 
-    // Listen for checkbox changes to update submit button state
-    var boxes = workflowCheckboxes.querySelectorAll('input[type="checkbox"]');
+    // Listen for workflow changes to update submit button state
+    var boxes = workflowCheckboxes.querySelectorAll('input[name="workflow"]');
     for (var j = 0; j < boxes.length; j++) {
       boxes[j].addEventListener("change", updateSubmitState);
     }
@@ -125,10 +132,12 @@
   // --- Submit Button State ---
 
   function updateSubmitState() {
-    var anyChecked = workflowCheckboxes.querySelector(
-      'input[type="checkbox"]:checked'
-    );
-    btnSubmit.disabled = !(selectedFile && anyChecked);
+    btnSubmit.disabled = !(selectedFile && getSelectedWorkflow());
+  }
+
+  function getSelectedWorkflow() {
+    var selected = workflowCheckboxes.querySelector('input[name="workflow"]:checked');
+    return selected ? selected.value : "";
   }
 
   // --- Submission ---
@@ -140,27 +149,29 @@
   function handleSubmit() {
     hideError(submitError);
 
-    var checked = workflowCheckboxes.querySelectorAll(
-      'input[type="checkbox"]:checked'
-    );
-    if (!selectedFile || checked.length === 0) return;
-
-    var selectedWorkflows = [];
-    for (var i = 0; i < checked.length; i++) {
-      selectedWorkflows.push(checked[i].value);
-    }
+    var selectedWorkflow = getSelectedWorkflow();
+    if (!selectedFile || !selectedWorkflow) return;
+    var selectedWorkflows = [selectedWorkflow];
 
     var formData = new FormData();
     formData.append("file", selectedFile);
-    formData.append("workflows", selectedWorkflows.join(","));
+    formData.append("workflows", selectedWorkflow);
 
     btnSubmit.disabled = true;
     btnSubmit.textContent = "Generating...";
 
-    if (canReplaySubmission(selectedWorkflows)) {
-      runReplaySubmission(selectedWorkflows)
-        .catch(function () {
-          submitLive(formData, selectedWorkflows);
+    if (runMode === "demo" || runMode === "report-lab") {
+      if (!canReplaySubmission(selectedWorkflow)) {
+        showError(submitError, "Replay fixture missing for workflow: " + selectedWorkflow);
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = "Generate Report";
+        return;
+      }
+      runReplaySubmission(selectedWorkflow, runMode === "report-lab")
+        .catch(function (err) {
+          showError(submitError, err && err.message ? err.message : "Replay fixture unavailable");
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = "Generate Report";
         });
       return;
     }
@@ -168,31 +179,65 @@
     submitLive(formData, selectedWorkflows);
   }
 
-  function canReplaySubmission(selectedWorkflows) {
-    return selectedWorkflows.length === 1 && selectedWorkflows[0] === "patent-screen";
+  function canReplaySubmission(selectedWorkflow) {
+    return !!replayFixtures[selectedWorkflow];
   }
 
-  function runReplaySubmission(selectedWorkflows) {
+  function runReplaySubmission(selectedWorkflow, buildLiveReport) {
+    var replayReportURL = replayFixtures[selectedWorkflow];
     return fetch(replayReportURL, { cache: "no-store" })
       .then(function (res) {
-        if (!res.ok) throw new Error("Replay fixture unavailable");
+        if (!res.ok) throw new Error("Replay fixture unavailable for " + selectedWorkflow);
         return res.text();
       })
       .then(function (raw) {
-        var replayToken = "replay-" + Date.now();
-        replayReports[replayToken + "/patent-screen"] = raw;
-        showStatusView(replayToken, selectedWorkflows);
+        if (!buildLiveReport) {
+          return {
+            reportRaw: raw,
+            tokenPrefix: "replay-"
+          };
+        }
+        return buildReportFromEnvelope(selectedWorkflow, raw).then(function (reportRaw) {
+          return { reportRaw: reportRaw, tokenPrefix: "reportlab-" };
+        });
+      })
+      .then(function (result) {
+        var replayToken = result.tokenPrefix + Date.now();
+        var statusMap = {};
+        statusMap[selectedWorkflow] = { status: "completed", ready: true };
+        replayReports[replayToken + "/" + selectedWorkflow] = result.reportRaw;
+        showStatusView(replayToken, [selectedWorkflow]);
         if (pollTimer) {
           clearInterval(pollTimer);
           pollTimer = null;
         }
         updateStatusUI({
           token: replayToken,
-          workflows: {
-            "patent-screen": { status: "completed", ready: true }
-          }
+          workflows: statusMap
         });
-        loadReportPreview(replayToken, "patent-screen");
+        loadReportPreview(replayToken, selectedWorkflow);
+      });
+  }
+
+  function buildReportFromEnvelope(workflow, raw) {
+    var envelope;
+    try {
+      envelope = JSON.parse(raw);
+    } catch (e) {
+      throw new Error("Replay fixture is not valid JSON for report build");
+    }
+    return fetch("/report-build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workflow: workflow, envelope: envelope })
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Report build failed (HTTP " + res.status + ")");
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data || !data.report_raw) throw new Error("Report build returned empty output");
+        return String(data.report_raw);
       });
   }
 
@@ -241,7 +286,7 @@
     workflowStatusList.innerHTML = html;
 
     // Replay mode uses fixture data and has no /status endpoint.
-    if (isReplayToken(token)) {
+    if (isLocalReplayToken(token)) {
       if (pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
@@ -406,10 +451,74 @@
     reportBadges.innerHTML = "";
     reportMeta.innerHTML = "";
 
-    var boxes = workflowCheckboxes.querySelectorAll('input[type="checkbox"]');
+    var boxes = workflowCheckboxes.querySelectorAll('input[name="workflow"]');
     for (var i = 0; i < boxes.length; i++) {
       boxes[i].checked = false;
     }
+  }
+
+  function normalizeRunMode(value) {
+    if (value === "demo" || value === "report-lab" || value === "live") return value;
+    return "demo";
+  }
+
+  function loadRunModePreference() {
+    try {
+      var params = new URLSearchParams(window.location.search || "");
+      if (params.has("mode")) {
+        return normalizeRunMode(String(params.get("mode") || "").toLowerCase());
+      }
+      if (params.has("demo")) {
+        var demoQueryValue = String(params.get("demo") || "").toLowerCase();
+        var isDemo = demoQueryValue === "1" || demoQueryValue === "true" || demoQueryValue === "yes";
+        return isDemo ? "demo" : "live";
+      }
+    } catch (e) {}
+
+    try {
+      var stored = window.localStorage.getItem(runModeStorageKey);
+      if (stored === null) return "demo";
+      return normalizeRunMode(stored);
+    } catch (e2) {
+      return "demo";
+    }
+  }
+
+  function saveRunModePreference(value) {
+    try {
+      window.localStorage.setItem(runModeStorageKey, normalizeRunMode(value));
+    } catch (e) {}
+  }
+
+  function runModeBannerText() {
+    if (runMode === "demo") {
+      return "Demo mode enabled: uploads return canned reports (no live agent calls).";
+    }
+    if (runMode === "report-lab") {
+      return "Report lab enabled: canned analysis is rebuilt into a live report.";
+    }
+    return "";
+  }
+
+  function updateRunModeUI() {
+    if (runModeSelect) {
+      runModeSelect.value = runMode;
+    }
+    if (modeBanner) {
+      var text = runModeBannerText();
+      modeBanner.hidden = text === "";
+      modeBanner.textContent = text;
+    }
+  }
+
+  function bindRunModeSelect() {
+    updateRunModeUI();
+    if (!runModeSelect) return;
+    runModeSelect.addEventListener("change", function () {
+      runMode = normalizeRunMode(runModeSelect.value);
+      saveRunModePreference(runMode);
+      updateRunModeUI();
+    });
   }
 
   // --- Helpers ---
@@ -491,7 +600,7 @@
     try {
       var parsed = JSON.parse(raw);
       if (parsed && parsed.report_markdown) {
-        markdown = parsed.report_markdown;
+        markdown = normalizeReportMarkdown(parsed, parsed.report_markdown);
         if (parsed.determination) {
           badgeHTML += '<span class="report-badge">' + escapeHtml(String(parsed.determination)) + "</span>";
         }
@@ -513,7 +622,7 @@
   }
 
   function downloadReportPDF(token, workflow) {
-    if (!isReplayToken(token)) {
+    if (!isLocalReplayToken(token)) {
       window.location.href = "/report-pdf/" + encodeURIComponent(token) + "/" + encodeURIComponent(workflow);
       return;
     }
@@ -564,6 +673,9 @@
   function buildReportMetaHTML(parsed) {
     if (!parsed) return "";
 
+    var isPriorArt = String(parsed.agent || "").toLowerCase() === "prior-art-search";
+    var uclaCaseID = extractUCLACaseID(parsed);
+    var piName = extractPIName(parsed);
     var reference = formatCaseReference(parsed.case_id);
     var invention = "";
     var dateText = "";
@@ -571,12 +683,21 @@
     if (parsed.stage_outputs && parsed.stage_outputs.stage_1 && parsed.stage_outputs.stage_1.invention_title) {
       invention = String(parsed.stage_outputs.stage_1.invention_title);
     }
+    if (!invention && parsed.structured_results && parsed.structured_results.search_strategy && parsed.structured_results.search_strategy.invention_title) {
+      invention = String(parsed.structured_results.search_strategy.invention_title);
+    }
     if (parsed.pipeline_metadata && parsed.pipeline_metadata.completed_at) {
       dateText = formatCompletedAt(parsed.pipeline_metadata.completed_at);
     }
+    if (!dateText && parsed.metadata && parsed.metadata.completed_at) {
+      dateText = formatCompletedAt(parsed.metadata.completed_at);
+    }
 
     var html = "";
-    if (reference) {
+    if (isPriorArt) {
+      html += "<div><strong>UCLA Case ID:</strong> " + escapeHtml(uclaCaseID || "Not provided") + "</div>";
+      html += "<div><strong>PI:</strong> " + escapeHtml(piName || "Not provided") + "</div>";
+    } else if (reference) {
       html += "<div><strong>Reference:</strong> " + escapeHtml(reference) + "</div>";
     }
     if (invention) {
@@ -588,9 +709,77 @@
     return html;
   }
 
+  function extractUCLACaseID(parsed) {
+    var direct = String(parsed.ucla_case_id || parsed.technology_id || parsed.tech_id || "").trim();
+    if (/^\d{4}-\d{3}$/.test(direct)) return direct;
+    var meta = parsed.metadata || {};
+    var fromMeta = String(meta.ucla_case_id || meta.technology_id || meta.tech_id || "").trim();
+    if (/^\d{4}-\d{3}$/.test(fromMeta)) return fromMeta;
+    var caseID = String(parsed.case_id || "").trim();
+    if (/^\d{4}-\d{3}$/.test(caseID)) return caseID;
+    return "";
+  }
+
+  function extractPIName(parsed) {
+    var direct = String(parsed.pi_name || parsed.principal_investigator || parsed.pi || "").trim();
+    if (direct) return direct;
+    var meta = parsed.metadata || {};
+    var fromMeta = String(meta.pi_name || meta.principal_investigator || meta.pi || "").trim();
+    if (fromMeta) return fromMeta;
+    var strategy = (parsed.structured_results && parsed.structured_results.search_strategy) || {};
+    var fromStrategy = String(strategy.pi_name || strategy.principal_investigator || "").trim();
+    if (fromStrategy) return fromStrategy;
+    return "";
+  }
+
+  function normalizeReportMarkdown(parsed, markdown) {
+    var agent = parsed && parsed.agent ? String(parsed.agent).toLowerCase() : "";
+    if (agent !== "prior-art-search") return String(markdown || "");
+
+    var lines = String(markdown || "").split("\n");
+    var i = 0;
+    while (i < lines.length && !String(lines[i]).trim()) i++;
+    if (i >= lines.length) return String(markdown || "");
+    if (String(lines[i]).trim().indexOf("# Prior Art Search Report") !== 0) return String(markdown || "");
+
+    var j = i + 1;
+    while (j < lines.length && !String(lines[j]).trim()) j++;
+
+    var consumed = 0;
+    while (j < lines.length) {
+      var t = String(lines[j]).trim();
+      if (
+        t.indexOf("- Case ID:") === 0 ||
+        t.indexOf("- Invention:") === 0 ||
+        t.indexOf("- Date:") === 0
+      ) {
+        consumed++;
+        j++;
+        continue;
+      }
+      break;
+    }
+
+    if (!consumed) return String(markdown || "");
+
+    while (j < lines.length && !String(lines[j]).trim()) j++;
+    var normalized = ["# Prior Art Search Report", ""];
+    for (var k = j; k < lines.length; k++) {
+      normalized.push(lines[k]);
+    }
+    return normalized.join("\n");
+  }
+
   function formatCaseReference(caseID) {
     var id = String(caseID || "").trim();
     if (!id) return "";
+    if (
+      id.indexOf("SUB-") === 0 ||
+      id.indexOf("replay-") === 0 ||
+      id.indexOf("reportlab-") === 0
+    ) {
+      return "";
+    }
     if (/^\d{4}-\d{3}$/.test(id)) {
       return "UCLA Case #" + id;
     }
@@ -614,8 +803,9 @@
     }
   }
 
-  function isReplayToken(token) {
-    return String(token || "").indexOf("replay-") === 0;
+  function isLocalReplayToken(token) {
+    var normalized = String(token || "");
+    return normalized.indexOf("replay-") === 0 || normalized.indexOf("reportlab-") === 0;
   }
 
   function markdownToHtml(markdown) {
@@ -795,5 +985,6 @@
   }
 
   // --- Init ---
+  bindRunModeSelect();
   fetchWorkflows();
 })();

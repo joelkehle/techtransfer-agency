@@ -2,6 +2,9 @@
 
 Visual diagram: [architecture.html](/architecture.html) (served at techtransfer.agency/architecture.html)
 
+Tracking:
+- Decisions + backlog: `docs/DECISIONS_AND_BACKLOG.md`
+
 ## Repositories
 
 | Repo | Owner | Purpose |

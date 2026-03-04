@@ -97,7 +97,13 @@ func (r *ChromiumPDFRenderer) buildHTML(report string) (string, error) {
 	var envelope map[string]any
 	if json.Unmarshal([]byte(report), &envelope) == nil {
 		if s, ok := envelope["report_markdown"].(string); ok && strings.TrimSpace(s) != "" {
-			markdown = s
+			if rebuilt, ok := buildPriorArtReportMarkdown(envelope); ok {
+				markdown = rebuilt
+				envelope["report_markdown"] = rebuilt
+			} else {
+				markdown = normalizeReportMarkdown(envelope, s)
+				envelope["report_markdown"] = markdown
+			}
 		}
 		metaHTML = buildMetaHTML(envelope)
 		badgeHTML = buildBadgeHTML(envelope)
@@ -161,14 +167,36 @@ func (r *ChromiumPDFRenderer) loadStyleCSS() (string, error) {
 
 func buildMetaHTML(env map[string]any) string {
 	var out strings.Builder
-	ref := formatCaseReference(stringValue(env["case_id"]))
-	if ref != "" {
-		out.WriteString("<div><strong>Reference:</strong> " + html.EscapeString(ref) + "</div>")
+	isPriorArt := strings.EqualFold(stringValue(env["agent"]), "prior-art-search")
+	if isPriorArt {
+		uclaCaseID := priorArtUCLACaseID(env)
+		if uclaCaseID == "" {
+			uclaCaseID = "Not provided"
+		}
+		piName := priorArtPIName(env)
+		if piName == "" {
+			piName = "Not provided"
+		}
+		out.WriteString("<div><strong>UCLA Case ID:</strong> " + html.EscapeString(uclaCaseID) + "</div>")
+		out.WriteString("<div><strong>PI:</strong> " + html.EscapeString(piName) + "</div>")
+	} else {
+		ref := formatCaseReference(stringValue(env["case_id"]))
+		if ref != "" {
+			out.WriteString("<div><strong>Reference:</strong> " + html.EscapeString(ref) + "</div>")
+		}
 	}
-	if title := lookupString(env, "stage_outputs", "stage_1", "invention_title"); title != "" {
+	title := lookupString(env, "stage_outputs", "stage_1", "invention_title")
+	if title == "" {
+		title = lookupString(env, "structured_results", "search_strategy", "invention_title")
+	}
+	if title != "" {
 		out.WriteString("<div><strong>Invention:</strong> " + html.EscapeString(title) + "</div>")
 	}
-	if completed := lookupString(env, "pipeline_metadata", "completed_at"); completed != "" {
+	completed := lookupString(env, "pipeline_metadata", "completed_at")
+	if completed == "" {
+		completed = lookupString(env, "metadata", "completed_at")
+	}
+	if completed != "" {
 		if ts, err := time.Parse(time.RFC3339Nano, completed); err == nil {
 			out.WriteString("<div><strong>Date:</strong> " + html.EscapeString(ts.In(time.Local).Format("January 2, 2006 at 3:04 PM MST")) + "</div>")
 		} else {
@@ -176,6 +204,49 @@ func buildMetaHTML(env map[string]any) string {
 		}
 	}
 	return out.String()
+}
+
+func normalizeReportMarkdown(env map[string]any, markdown string) string {
+	if !strings.EqualFold(stringValue(env["agent"]), "prior-art-search") {
+		return markdown
+	}
+	lines := strings.Split(markdown, "\n")
+	i := 0
+	for i < len(lines) && strings.TrimSpace(lines[i]) == "" {
+		i++
+	}
+	if i >= len(lines) {
+		return markdown
+	}
+	if !strings.HasPrefix(strings.TrimSpace(lines[i]), "# Prior Art Search Report") {
+		return markdown
+	}
+
+	j := i + 1
+	for j < len(lines) && strings.TrimSpace(lines[j]) == "" {
+		j++
+	}
+
+	consumed := 0
+	for j < len(lines) {
+		t := strings.TrimSpace(lines[j])
+		if strings.HasPrefix(t, "- Case ID:") || strings.HasPrefix(t, "- Invention:") || strings.HasPrefix(t, "- Date:") {
+			consumed++
+			j++
+			continue
+		}
+		break
+	}
+	if consumed == 0 {
+		return markdown
+	}
+	for j < len(lines) && strings.TrimSpace(lines[j]) == "" {
+		j++
+	}
+
+	normalized := []string{"# Prior Art Search Report", ""}
+	normalized = append(normalized, lines[j:]...)
+	return strings.Join(normalized, "\n")
 }
 
 func buildBadgeHTML(env map[string]any) string {
@@ -209,6 +280,9 @@ func stringValue(v any) string {
 func formatCaseReference(caseID string) string {
 	id := strings.TrimSpace(caseID)
 	if id == "" {
+		return ""
+	}
+	if strings.HasPrefix(id, "SUB-") || strings.HasPrefix(id, "replay-") || strings.HasPrefix(id, "reportlab-") {
 		return ""
 	}
 	if len(id) == 8 && id[4] == '-' {

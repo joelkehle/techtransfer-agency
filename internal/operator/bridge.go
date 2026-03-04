@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -94,10 +95,10 @@ func (b *Bridge) Submit(ctx context.Context, token, workflow, caseID string, att
 
 func selectTargetAgent(workflow string, agents []busclient.AgentInfo) string {
 	preferredByWorkflow := map[string]string{
-		"patent-screen":    "patent-extractor",
-		"market-analysis":  "market-extractor",
-		"prior-art":        "prior-art-extractor",
-		"prior-art-search": "prior-art-extractor",
+		"patent-screen":    envOrDefault("WORKFLOW_TARGET_PATENT_SCREEN", "patent-extractor"),
+		"market-analysis":  envOrDefault("WORKFLOW_TARGET_MARKET_ANALYSIS", "market-extractor"),
+		"prior-art":        envOrDefault("WORKFLOW_TARGET_PRIOR_ART_SEARCH", "prior-art-extractor"),
+		"prior-art-search": envOrDefault("WORKFLOW_TARGET_PRIOR_ART_SEARCH", "prior-art-extractor"),
 	}
 	preferred, ok := preferredByWorkflow[workflow]
 	if !ok {
@@ -109,6 +110,14 @@ func selectTargetAgent(workflow string, agents []busclient.AgentInfo) string {
 		}
 	}
 	return agents[0].AgentID
+}
+
+func envOrDefault(key, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 // PollLoop runs the inbox poll loop, matching responses back to submissions.
