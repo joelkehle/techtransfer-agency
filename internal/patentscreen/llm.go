@@ -13,6 +13,10 @@ import (
 
 	anthropic "github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/joelkehle/techtransfer-agency/internal/llmcost"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const systemPrompt = "You are a patent examiner conducting a preliminary eligibility screen under 35 U.S.C. § 101, following the USPTO's MPEP § 2106 framework. Respond with strict JSON only."
@@ -33,7 +37,22 @@ const (
 )
 
 type LLMCaller interface {
-	GenerateJSON(ctx context.Context, prompt string) (string, error)
+	GenerateJSON(ctx context.Context, prompt string) (LLMResponse, error)
+}
+
+type LLMResponse struct {
+	JSON             string
+	Model            string
+	Usage            LLMUsage
+	EstimatedCostUSD float64
+	CostSource       string
+}
+
+type LLMUsage struct {
+	InputTokens              int64
+	OutputTokens             int64
+	CacheCreationInputTokens int64
+	CacheReadInputTokens     int64
 }
 
 type AnthropicCaller struct {
@@ -69,16 +88,27 @@ func envEnabled(key string) bool {
 	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
-func (a *AnthropicCaller) GenerateJSON(ctx context.Context, prompt string) (string, error) {
+func (a *AnthropicCaller) GenerateJSON(ctx context.Context, prompt string) (LLMResponse, error) {
+	model := anthropic.ModelClaudeSonnet4_20250514
+	ctx, span := otel.Tracer("techtransfer-agency/patentscreen").Start(ctx, "llm.anthropic.generate")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("llm.vendor", "anthropic"),
+		attribute.String("llm.model", string(model)),
+		attribute.Int("llm.max_tokens", 4096),
+	)
+
 	resp, err := a.messages.New(ctx, anthropic.MessageNewParams{
-		Model:       anthropic.ModelClaudeSonnet4_20250514,
+		Model:       model,
 		MaxTokens:   4096,
 		System:      []anthropic.TextBlockParam{{Text: systemPrompt}},
 		Messages:    []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(prompt))},
 		Temperature: anthropic.Float(0),
 	})
 	if err != nil {
-		return "", err
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return LLMResponse{}, err
 	}
 	var sb strings.Builder
 	for _, b := range resp.Content {
@@ -86,7 +116,38 @@ func (a *AnthropicCaller) GenerateJSON(ctx context.Context, prompt string) (stri
 			sb.WriteString(b.Text)
 		}
 	}
-	return sb.String(), nil
+	usage := LLMUsage{
+		InputTokens:              resp.Usage.InputTokens,
+		OutputTokens:             resp.Usage.OutputTokens,
+		CacheCreationInputTokens: resp.Usage.CacheCreationInputTokens,
+		CacheReadInputTokens:     resp.Usage.CacheReadInputTokens,
+	}
+	span.SetAttributes(
+		attribute.Int64("llm.usage.input_tokens", usage.InputTokens),
+		attribute.Int64("llm.usage.output_tokens", usage.OutputTokens),
+		attribute.Int64("llm.usage.cache_creation_input_tokens", usage.CacheCreationInputTokens),
+		attribute.Int64("llm.usage.cache_read_input_tokens", usage.CacheReadInputTokens),
+	)
+	respOut := LLMResponse{
+		JSON:  sb.String(),
+		Model: string(model),
+		Usage: usage,
+	}
+	if pricing, source, ok := llmcost.ResolvePricing(string(model)); ok {
+		estimated := llmcost.EstimateUSD(llmcost.Usage{
+			InputTokens:              usage.InputTokens,
+			OutputTokens:             usage.OutputTokens,
+			CacheCreationInputTokens: usage.CacheCreationInputTokens,
+			CacheReadInputTokens:     usage.CacheReadInputTokens,
+		}, pricing)
+		respOut.EstimatedCostUSD = estimated
+		respOut.CostSource = source
+		span.SetAttributes(
+			attribute.Float64("llm.cost.estimated_usd", estimated),
+			attribute.String("llm.cost.source", source),
+		)
+	}
+	return respOut, nil
 }
 
 type StageExecutor struct {
@@ -107,7 +168,7 @@ func (e *StageExecutor) Run(ctx context.Context, stageName, prompt string, out a
 			fullPrompt += "\n\n" + feedback
 		}
 
-		raw, err := e.caller.GenerateJSON(ctx, fullPrompt)
+		resp, err := e.caller.GenerateJSON(ctx, fullPrompt)
 		if err != nil {
 			class := classifyTransportError(err)
 			if class == failureTimeout || class == failureRateLimit || class == failureServer {
@@ -119,7 +180,13 @@ func (e *StageExecutor) Run(ctx context.Context, stageName, prompt string, out a
 			return metrics, fmt.Errorf("%s transport failure: %w", stageName, err)
 		}
 
-		raw = strings.TrimSpace(raw)
+		metrics.InputTokens += resp.Usage.InputTokens
+		metrics.OutputTokens += resp.Usage.OutputTokens
+		metrics.CacheCreationInputTokens += resp.Usage.CacheCreationInputTokens
+		metrics.CacheReadInputTokens += resp.Usage.CacheReadInputTokens
+		metrics.EstimatedCostUSD += resp.EstimatedCostUSD
+
+		raw := strings.TrimSpace(resp.JSON)
 		if raw == "" {
 			if attempt < 3 {
 				metrics.ContentRetries++

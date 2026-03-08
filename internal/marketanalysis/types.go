@@ -78,18 +78,21 @@ type RequestEnvelope struct {
 }
 
 type PipelineMetadata struct {
-	StagesExecuted      []string       `json:"stages_executed"`
-	StagesSkipped       []string       `json:"stages_skipped"`
-	StageFailed         string         `json:"stage_failed,omitempty"`
-	StartedAt           time.Time      `json:"started_at"`
-	CompletedAt         time.Time      `json:"completed_at"`
-	InputTruncated      bool           `json:"input_truncated"`
-	Mode                ReportMode     `json:"mode"`
-	EarlyExitReason     string         `json:"early_exit_reason,omitempty"`
-	TotalLLMCalls       int            `json:"total_llm_calls"`
-	TotalRetries        int            `json:"total_retries"`
-	StageAttempts       map[string]int `json:"stage_attempts,omitempty"`
-	StageContentRetries map[string]int `json:"stage_content_retries,omitempty"`
+	StagesExecuted        []string       `json:"stages_executed"`
+	StagesSkipped         []string       `json:"stages_skipped"`
+	StageFailed           string         `json:"stage_failed,omitempty"`
+	StartedAt             time.Time      `json:"started_at"`
+	CompletedAt           time.Time      `json:"completed_at"`
+	InputTruncated        bool           `json:"input_truncated"`
+	Mode                  ReportMode     `json:"mode"`
+	EarlyExitReason       string         `json:"early_exit_reason,omitempty"`
+	TotalLLMCalls         int            `json:"total_llm_calls"`
+	TotalRetries          int            `json:"total_retries"`
+	TotalInputTokens      int64          `json:"total_input_tokens,omitempty"`
+	TotalOutputTokens     int64          `json:"total_output_tokens,omitempty"`
+	TotalEstimatedCostUSD float64        `json:"total_estimated_cost_usd,omitempty"`
+	StageAttempts         map[string]int `json:"stage_attempts,omitempty"`
+	StageContentRetries   map[string]int `json:"stage_content_retries,omitempty"`
 }
 
 type ResponseEnvelope struct {
@@ -104,8 +107,13 @@ type ResponseEnvelope struct {
 }
 
 type StageAttemptMetrics struct {
-	Attempts       int
-	ContentRetries int
+	Attempts                 int
+	ContentRetries           int
+	InputTokens              int64
+	OutputTokens             int64
+	CacheCreationInputTokens int64
+	CacheReadInputTokens     int64
+	EstimatedCostUSD         float64
 }
 
 type NullableField struct {

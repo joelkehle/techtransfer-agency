@@ -48,6 +48,9 @@ type PipelineMetadata struct {
 	StagesSkipped          []string       `json:"stages_skipped"`
 	TotalLLMCalls          int            `json:"total_llm_calls"`
 	TotalRetries           int            `json:"total_retries"`
+	TotalInputTokens       int64          `json:"total_input_tokens,omitempty"`
+	TotalOutputTokens      int64          `json:"total_output_tokens,omitempty"`
+	TotalEstimatedCostUSD  float64        `json:"total_estimated_cost_usd,omitempty"`
 	StageAttempts          map[string]int `json:"stage_attempts,omitempty"`
 	StageContentRetries    map[string]int `json:"stage_content_retries,omitempty"`
 	Stage5BooleanAgreement *bool          `json:"stage_5_boolean_agreement,omitempty"`
@@ -75,8 +78,13 @@ type StageConfidence struct {
 }
 
 type StageAttemptMetrics struct {
-	Attempts       int
-	ContentRetries int
+	Attempts                 int
+	ContentRetries           int
+	InputTokens              int64
+	OutputTokens             int64
+	CacheCreationInputTokens int64
+	CacheReadInputTokens     int64
+	EstimatedCostUSD         float64
 }
 
 type Stage1Output struct {

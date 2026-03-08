@@ -12,16 +12,16 @@ type fakeCaller struct {
 	i         int
 }
 
-func (f *fakeCaller) GenerateJSON(context.Context, string) (string, error) {
+func (f *fakeCaller) GenerateJSON(context.Context, string) (LLMResponse, error) {
 	idx := f.i
 	f.i++
 	if idx < len(f.errs) && f.errs[idx] != nil {
-		return "", f.errs[idx]
+		return LLMResponse{}, f.errs[idx]
 	}
 	if idx < len(f.responses) {
-		return f.responses[idx], nil
+		return LLMResponse{JSON: f.responses[idx]}, nil
 	}
-	return "", nil
+	return LLMResponse{}, nil
 }
 
 func TestValidateStage1ClaimsDependency(t *testing.T) {

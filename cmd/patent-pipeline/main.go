@@ -8,8 +8,10 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/joelkehle/techtransfer-agency/internal/patentteam"
+	"github.com/joelkehle/techtransfer-agency/internal/telemetry"
 )
 
 func main() {
@@ -47,6 +49,17 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	shutdownTelemetry, err := telemetry.InitFromEnv(ctx, "patent-pipeline")
+	if err != nil {
+		log.Fatalf("init telemetry: %v", err)
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		if err := shutdownTelemetry(shutdownCtx); err != nil {
+			log.Printf("telemetry shutdown error: %v", err)
+		}
+	}()
 
 	svc := patentteam.NewPipelineService(cfg)
 	log.Printf("starting patent pipeline (bus=%s)", *busURL)

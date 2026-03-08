@@ -143,8 +143,13 @@ func (p *Pipeline) runWithProgress(ctx context.Context, req RequestEnvelope, pro
 	emit(progress, "stage_5", fmt.Sprintf("Stage 5 complete in %s", time.Since(stageStarted).Round(time.Millisecond)))
 	res.Stage5 = &s5First
 	res.Attempts["stage_5"] = StageAttemptMetrics{
-		Attempts:       m5First.Attempts + m5Second.Attempts,
-		ContentRetries: m5First.ContentRetries + m5Second.ContentRetries,
+		Attempts:                 m5First.Attempts + m5Second.Attempts,
+		ContentRetries:           m5First.ContentRetries + m5Second.ContentRetries,
+		InputTokens:              m5First.InputTokens + m5Second.InputTokens,
+		OutputTokens:             m5First.OutputTokens + m5Second.OutputTokens,
+		CacheCreationInputTokens: m5First.CacheCreationInputTokens + m5Second.CacheCreationInputTokens,
+		CacheReadInputTokens:     m5First.CacheReadInputTokens + m5Second.CacheReadInputTokens,
+		EstimatedCostUSD:         m5First.EstimatedCostUSD + m5Second.EstimatedCostUSD,
 	}
 	res.Metadata.StagesExecuted = append(res.Metadata.StagesExecuted, "stage_5")
 	if secondErr != nil {
@@ -207,6 +212,9 @@ func (p *Pipeline) finalize(res PipelineResult) PipelineResult {
 	for stage, m := range res.Attempts {
 		res.Metadata.StageAttempts[stage] = m.Attempts
 		res.Metadata.StageContentRetries[stage] = m.ContentRetries
+		res.Metadata.TotalInputTokens += m.InputTokens + m.CacheCreationInputTokens + m.CacheReadInputTokens
+		res.Metadata.TotalOutputTokens += m.OutputTokens
+		res.Metadata.TotalEstimatedCostUSD += m.EstimatedCostUSD
 	}
 	return res
 }

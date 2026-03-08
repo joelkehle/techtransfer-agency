@@ -266,6 +266,9 @@ func (p *Pipeline) finalize(res PipelineResult) PipelineResult {
 		if m.Attempts > 1 {
 			res.Metadata.TotalRetries += (m.Attempts - 1)
 		}
+		res.Metadata.TotalInputTokens += m.InputTokens + m.CacheCreationInputTokens + m.CacheReadInputTokens
+		res.Metadata.TotalOutputTokens += m.OutputTokens
+		res.Metadata.TotalEstimatedCostUSD += m.EstimatedCostUSD
 	}
 	return res
 }

@@ -1,0 +1,109 @@
+name: telemetry-policy-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  runbook-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_REF="${{ github.base_ref }}"
+          git fetch --no-tags --prune --depth=1 origin "${BASE_REF}"
+          CHANGED_FILES="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+
+          {
+            echo "changed_files<<EOF"
+            echo "${CHANGED_FILES}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          NEEDS_RULE_CHECK=0
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            if [[ "$file" == *"prometheus/rules"*.yml ]] || [[ "$file" == *"/rules.yml" ]] || [[ "$file" == *"/rules.yaml" ]]; then
+              NEEDS_RULE_CHECK=1
+            fi
+          done <<< "${CHANGED_FILES}"
+
+          echo "needs_rule_check=${NEEDS_RULE_CHECK}" >> "$GITHUB_OUTPUT"
+
+      - name: Enforce runbook annotation on changed alerts
+        if: steps.diff.outputs.needs_rule_check == '1'
+        shell: bash
+        env:
+          CHANGED_FILES: ${{ steps.diff.outputs.changed_files }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+          import sys
+
+          changed_files = [line.strip() for line in os.environ.get("CHANGED_FILES", "").splitlines() if line.strip()]
+          rule_files = []
+          for file in changed_files:
+              if ("prometheus/rules" in file and (file.endswith(".yml") or file.endswith(".yaml"))) or file.endswith("/rules.yml") or file.endswith("/rules.yaml"):
+                  rule_files.append(file)
+
+          if not rule_files:
+              print("No changed Prometheus rule files detected.")
+              sys.exit(0)
+
+          missing = []
+          for file in rule_files:
+              path = pathlib.Path(file)
+              if not path.exists():
+                  continue
+
+              lines = path.read_text(encoding="utf-8").splitlines()
+              i = 0
+              while i < len(lines):
+                  m = re.match(r"^\s*-\s*alert:\s*(.+?)\s*$", lines[i])
+                  if not m:
+                      i += 1
+                      continue
+
+                  alert_name = m.group(1).strip()
+                  j = i + 1
+                  has_runbook = False
+                  while j < len(lines):
+                      if re.match(r"^\s*-\s*alert:\s*", lines[j]):
+                          break
+                      if re.match(r"^\s*runbook:\s*\S+", lines[j]):
+                          has_runbook = True
+                      j += 1
+
+                  if not has_runbook:
+                      missing.append(f"{file}:{alert_name}")
+
+                  i = j
+
+          if missing:
+              print("Missing 'runbook:' annotation for alert blocks:")
+              for item in missing:
+                  print(f"- {item}")
+              sys.exit(1)
+
+          print("Runbook annotation check passed.")
+          PY
+
+      - name: Telemetry gate summary
+        if: always()
+        run: |
+          echo "telemetry-policy-gate completed"

@@ -4,11 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
 	anthropic "github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/joelkehle/techtransfer-agency/internal/llmcost"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const patentEvalSystemPrompt = `You are a patent eligibility screening assistant for a university technology transfer office.
@@ -81,9 +86,19 @@ func EvaluatePatentEligibilityLLM(ctx context.Context, caseID, extractedText str
 	}
 
 	messages := newAnthropicClient(apiKey)
+	model := anthropic.ModelClaudeSonnet4_20250514
+	ctx, span := otel.Tracer("techtransfer-agency/patentteam").Start(ctx, "llm.anthropic.evaluate")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("llm.vendor", "anthropic"),
+		attribute.String("llm.model", string(model)),
+		attribute.Int("llm.max_tokens", 4096),
+		attribute.String("workflow", "patent-eligibility"),
+		attribute.String("case_id", caseID),
+	)
 
 	resp, err := messages.New(ctx, anthropic.MessageNewParams{
-		Model:     anthropic.ModelClaudeSonnet4_20250514,
+		Model:     model,
 		MaxTokens: 4096,
 		System: []anthropic.TextBlockParam{
 			{Text: patentEvalSystemPrompt},
@@ -95,7 +110,30 @@ func EvaluatePatentEligibilityLLM(ctx context.Context, caseID, extractedText str
 		},
 	})
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return PatentAssessment{}, fmt.Errorf("claude API call failed: %w", err)
+	}
+	usage := llmcost.Usage{
+		InputTokens:              resp.Usage.InputTokens,
+		OutputTokens:             resp.Usage.OutputTokens,
+		CacheCreationInputTokens: resp.Usage.CacheCreationInputTokens,
+		CacheReadInputTokens:     resp.Usage.CacheReadInputTokens,
+	}
+	span.SetAttributes(
+		attribute.Int64("llm.usage.input_tokens", usage.InputTokens),
+		attribute.Int64("llm.usage.output_tokens", usage.OutputTokens),
+		attribute.Int64("llm.usage.cache_creation_input_tokens", usage.CacheCreationInputTokens),
+		attribute.Int64("llm.usage.cache_read_input_tokens", usage.CacheReadInputTokens),
+	)
+	if pricing, source, ok := llmcost.ResolvePricing(string(model)); ok {
+		estimated := llmcost.EstimateUSD(usage, pricing)
+		span.SetAttributes(
+			attribute.Float64("llm.cost.estimated_usd", estimated),
+			attribute.String("llm.cost.source", source),
+		)
+		log.Printf("patent-eligibility llm case_id=%s model=%s input_tokens=%d output_tokens=%d cache_creation_input_tokens=%d cache_read_input_tokens=%d estimated_cost_usd=%.6f cost_source=%s",
+			caseID, model, usage.InputTokens, usage.OutputTokens, usage.CacheCreationInputTokens, usage.CacheReadInputTokens, estimated, source)
 	}
 
 	// Extract text from the response content blocks.

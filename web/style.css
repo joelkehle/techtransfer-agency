@@ -536,9 +536,9 @@ section.vision-section:nth-of-type(5) { animation-delay: 0.33s; }
 }
 
 .inteum-content .phase-1 {
-  background: var(--live-bg);
-  color: var(--live);
-  border: 1px solid var(--live-border);
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
 }
 
 .inteum-content .phase-future {
@@ -616,9 +616,18 @@ section.vision-section:nth-of-type(5) { animation-delay: 0.33s; }
   min-width: 210px;
 }
 
+.inteum-content table.inteum-matrix th.phase-col {
+  min-width: 100px;
+  text-align: left;
+}
+
 .inteum-content table.inteum-matrix tbody tr {
   border-bottom: 1px solid var(--border-light);
   transition: background 0.1s;
+}
+
+.inteum-content table.inteum-matrix tbody tr.phase-1-row {
+  border-bottom: none;
 }
 
 .inteum-content table.inteum-matrix tbody tr:hover {
@@ -638,6 +647,15 @@ section.vision-section:nth-of-type(5) { animation-delay: 0.33s; }
   color: var(--ink);
 }
 
+.inteum-content .phase-lane-label {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.inteum-content .phase-lane-label .phase-badge {
+  margin-left: 0;
+}
+
 .inteum-content .group-header td {
   padding: 1rem 0.85rem 0.3rem;
   font-size: 0.65rem;
@@ -650,7 +668,8 @@ section.vision-section:nth-of-type(5) { animation-delay: 0.33s; }
 }
 
 .inteum-content .access-rw,
-.inteum-content .access-r {
+.inteum-content .access-r,
+.inteum-content .access-w {
   display: inline-block;
   font-family: "SF Mono", "Fira Code", "Consolas", monospace;
   font-size: 0.7rem;
@@ -661,15 +680,21 @@ section.vision-section:nth-of-type(5) { animation-delay: 0.33s; }
 }
 
 .inteum-content .access-rw {
-  background: var(--live-bg);
-  color: var(--live);
-  border: 1px solid var(--live-border);
+  background: linear-gradient(90deg, #fef3c7 0 50%, #ecfdf5 50% 100%);
+  color: var(--ink-2);
+  border: 1px solid var(--border);
 }
 
 .inteum-content .access-r {
   background: var(--accent-light);
   color: var(--accent);
   border: 1px solid #fcd34d;
+}
+
+.inteum-content .access-w {
+  background: var(--live-bg);
+  color: var(--live);
+  border: 1px solid var(--live-border);
 }
 
 .inteum-content .access-none {

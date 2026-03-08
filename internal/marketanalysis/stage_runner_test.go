@@ -11,14 +11,14 @@ type queueCaller struct {
 	prompts   []string
 }
 
-func (q *queueCaller) GenerateJSON(_ context.Context, prompt string) (string, error) {
+func (q *queueCaller) GenerateJSON(_ context.Context, prompt string) (LLMResponse, error) {
 	q.prompts = append(q.prompts, prompt)
 	if len(q.responses) == 0 {
-		return "{}", nil
+		return LLMResponse{JSON: "{}"}, nil
 	}
 	out := q.responses[0]
 	q.responses = q.responses[1:]
-	return out, nil
+	return LLMResponse{JSON: out}, nil
 }
 
 func TestRunStage0HappyRetryFailure(t *testing.T) {

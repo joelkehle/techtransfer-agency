@@ -202,7 +202,7 @@ export AGENT_ALLOWLIST=demo-operator,demo-patent-extractor,demo-prior-art-extrac
 - Before `up`, remove orphan/stale services from previous runs:
 
 ```bash
-docker-compose down --remove-orphans
+docker compose down --remove-orphans
 ```
 
 - To redeploy patent-screen pipeline services without restarting `bus`:
@@ -218,6 +218,19 @@ This rebuilds and restarts only `operator`, `patent-extractor`, and `patent-scre
 ```bash
 make smoke-production
 ```
+
+### Langfuse Pilot (Self-Hosted)
+
+For local Langfuse deployment and OTLP wiring, use:
+
+```bash
+docker compose -f docker-compose.langfuse.yml up -d
+```
+
+Then configure OTLP env vars in `.env` (see `.env.example`) and follow:
+
+- `docs/LANGFUSE_SELF_HOSTED_ROLLOUT_PLAN.md`
+- `docs/LANGFUSE_PILOT_RUNBOOK.md`
 
 If Cloudflare Access protects the site, set service token env vars before running:
 

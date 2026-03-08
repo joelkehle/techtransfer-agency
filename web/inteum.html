@@ -28,12 +28,16 @@
 
     <div class="inteum-legend">
       <div class="legend-item">
-        <span class="access-rw">R/W</span>
-        <span>Read and write</span>
+        <span class="access-r">R</span>
+        <span>Read</span>
       </div>
       <div class="legend-item">
-        <span class="access-r">R</span>
-        <span>Read only</span>
+        <span class="access-w">W</span>
+        <span>Write</span>
+      </div>
+      <div class="legend-item">
+        <span class="access-rw">R/W</span>
+        <span>Read and write (same phase)</span>
       </div>
       <div class="legend-item">
         <span class="access-none">—</span>
@@ -54,6 +58,7 @@
         <thead>
           <tr>
             <th>Agent Role</th>
+            <th class="phase-col">Phase</th>
             <th>Invention<br>Disclosures</th>
             <th>Patents</th>
             <th>Agreements</th>
@@ -64,149 +69,289 @@
         </thead>
         <tbody>
           <tr class="group-header">
-            <td colspan="7">Prior Art &amp; Patentability</td>
+            <td colspan="8">Prior Art &amp; Patentability</td>
           </tr>
-          <tr>
-            <td>Patent Eligibility Screen</td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-1">Phase 1</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-          </tr>
-          <tr>
-            <td>Prior Art Search</td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-1">Phase 1</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-          </tr>
-          <tr>
-            <td>Patentability Opinion</td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-          </tr>
-
-          <tr class="group-header">
-            <td colspan="7">Technical Assessment</td>
-          </tr>
-          <tr>
-            <td>Technical Domain Review</td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-1-row">
+            <td rowspan="2">Patent Eligibility Screen</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-r">R</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
           </tr>
-          <tr>
-            <td>Competitive Landscape</td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-w">W</span></td>
+            <td><span class="access-r">R</span></td>
             <td><span class="access-none">—</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Prior Art Search</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
           </tr>
-
-          <tr class="group-header">
-            <td colspan="7">Commercial Viability</td>
-          </tr>
-          <tr>
-            <td>Non-Confidential Description</td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-w">W</span></td>
+            <td><span class="access-r">R</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
             <td><span class="access-none">—</span></td>
           </tr>
-          <tr>
-            <td>Market Analysis</td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-1-row">
+            <td rowspan="2">Patentability Opinion</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
             <td><span class="access-none">—</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
           </tr>
-          <tr>
-            <td>Licensee Identification</td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-r">R</span></td>
             <td><span class="access-none">—</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-none">—</span></td>
-          </tr>
-          <tr>
-            <td>Marketing Target Generator</td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-none">—</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-          </tr>
-          <tr>
-            <td>Financial Valuation</td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
           </tr>
 
           <tr class="group-header">
-            <td colspan="7">Regulatory &amp; Legal</td>
+            <td colspan="8">Technical Assessment</td>
           </tr>
-          <tr>
-            <td>Regulatory Pathway</td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-1-row">
+            <td rowspan="2">Technical Domain Review</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
           </tr>
-          <tr>
-            <td>IP Ownership &amp; Compliance</td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Competitive Landscape</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+
+          <tr class="group-header">
+            <td colspan="8">Commercial Viability</td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Non-Confidential Description</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Market Analysis</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Licensee Identification</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Marketing Target Generator</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-rw">R/W</span></td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Financial Valuation</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-r">R</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
           </tr>
 
           <tr class="group-header">
-            <td colspan="7">Strategic</td>
+            <td colspan="8">Regulatory &amp; Legal</td>
           </tr>
-          <tr>
-            <td>Commercialization Strategy</td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-r">R</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+          <tr class="phase-1-row">
+            <td rowspan="2">Regulatory Pathway</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">IP Ownership &amp; Compliance</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
           </tr>
 
           <tr class="group-header">
-            <td colspan="7">Proactive</td>
+            <td colspan="8">Strategic</td>
           </tr>
-          <tr>
-            <td>Patent Deadline Watcher</td>
+          <tr class="phase-1-row">
+            <td rowspan="2">Commercialization Strategy</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
             <td><span class="access-none">—</span></td>
-            <td><span class="access-rw">R/W</span> <span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-r">R</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-rw">R/W</span></td>
+            <td><span class="access-rw">R/W</span></td>
+          </tr>
+
+          <tr class="group-header">
+            <td colspan="8">Proactive</td>
+          </tr>
+          <tr class="phase-1-row">
+            <td rowspan="2">Patent Deadline Watcher</td>
+            <td class="phase-lane-label"><span class="phase-badge phase-1">Phase 1</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-none">—</span></td>
+          </tr>
+          <tr class="phase-future-row">
+            <td class="phase-lane-label"><span class="phase-badge phase-future">Future</span></td>
+            <td><span class="access-none">—</span></td>
+            <td><span class="access-rw">R/W</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
             <td><span class="access-none">—</span></td>
