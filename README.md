@@ -232,6 +232,14 @@ Then configure OTLP env vars in `.env` (see `.env.example`) and follow:
 - `docs/LANGFUSE_SELF_HOSTED_ROLLOUT_PLAN.md`
 - `docs/LANGFUSE_PILOT_RUNBOOK.md`
 
+Useful pilot commands:
+
+```bash
+make langfuse-smoke          # submit workflow and assert trace count increases
+make langfuse-day1-baseline  # print baseline cost/tokens/latency/retry metrics
+make repair-compose-network  # repair tta-agentnet compose labels if drifted
+```
+
 If Cloudflare Access protects the site, set service token env vars before running:
 
 ```bash

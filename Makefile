@@ -1,4 +1,4 @@
-.PHONY: test race vet coverage lint vuln tools gate redeploy-patent-screen smoke-production render-patent-report pdf-regression-test pdf-regression-calibrate
+.PHONY: test race vet coverage lint vuln tools gate redeploy-patent-screen smoke-production render-patent-report pdf-regression-test pdf-regression-calibrate repair-compose-network langfuse-smoke langfuse-day1-baseline
 
 test:
 	go test ./...
@@ -39,3 +39,12 @@ pdf-regression-test:
 
 pdf-regression-calibrate:
 	python3 scripts/pdf_regression.py calibrate
+
+repair-compose-network:
+	./scripts/repair-compose-network.sh
+
+langfuse-smoke:
+	./scripts/langfuse-smoke.sh
+
+langfuse-day1-baseline:
+	./scripts/langfuse-day1-baseline.sh

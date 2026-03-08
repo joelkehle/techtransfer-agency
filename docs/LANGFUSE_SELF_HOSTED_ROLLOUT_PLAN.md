@@ -48,11 +48,12 @@ Run a 1-week pilot first. Keep this scoped to observability and measurement befo
    - Create API keys for OTLP ingestion.
 4. Configure telemetry env in TTA services:
    - `OTEL_EXPORTER_OTLP_ENDPOINT`
+   - `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`
    - `OTEL_SERVICE_NAME`
    - `OTEL_TRACE_SAMPLING_RATIO`
 5. If sending directly to Langfuse OTLP:
    - Auth header: `Authorization: Basic <base64(public_key:secret_key)>`
-   - Endpoint: `http://<langfuse-host>/api/public/otel`
+   - Trace endpoint: `http://<langfuse-host>/api/public/otel/v1/traces`
 
 ## Go Instrumentation Implementation Notes
 1. Add a shared package (example: `internal/telemetry`) to initialize OpenTelemetry once per service.
