@@ -231,6 +231,7 @@ Then configure OTLP env vars in `.env` (see `.env.example`) and follow:
 
 - `docs/LANGFUSE_SELF_HOSTED_ROLLOUT_PLAN.md`
 - `docs/LANGFUSE_PILOT_RUNBOOK.md`
+- `docs/LANGFUSE_IP_AGENCY_STUDY_GUIDE.md`
 
 Useful pilot commands:
 

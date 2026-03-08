@@ -1,4 +1,4 @@
-.PHONY: test race vet coverage lint vuln tools gate redeploy-patent-screen smoke-production render-patent-report pdf-regression-test pdf-regression-calibrate repair-compose-network langfuse-smoke langfuse-day1-baseline
+.PHONY: test race vet coverage lint vuln tools gate redeploy-patent-screen smoke-production render-patent-report pdf-regression-test pdf-regression-calibrate repair-compose-network langfuse-smoke langfuse-day1-baseline langfuse-sme-study
 
 test:
 	go test ./...
@@ -48,3 +48,6 @@ langfuse-smoke:
 
 langfuse-day1-baseline:
 	./scripts/langfuse-day1-baseline.sh
+
+langfuse-sme-study:
+	./scripts/langfuse-sme-study.sh

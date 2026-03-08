@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/joelkehle/techtransfer-agency/pkg/busclient"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type Bridge struct {
@@ -22,6 +25,18 @@ type Bridge struct {
 	cursorMu sync.Mutex
 	cursor   int
 	seq      int64
+	flowMu   sync.Mutex
+	flows    map[string]flowState
+}
+
+type flowState struct {
+	Token          string
+	Workflow       string
+	TargetAgent    string
+	CaseID         string
+	RequestID      string
+	AttachmentCnt  int
+	SubmittedAtUTC time.Time
 }
 
 func NewBridge(busURL, agentID, secret string, store *SubmissionStore) *Bridge {
@@ -30,6 +45,7 @@ func NewBridge(busURL, agentID, secret string, store *SubmissionStore) *Bridge {
 		agentID: agentID,
 		secret:  secret,
 		store:   store,
+		flows:   make(map[string]flowState),
 	}
 }
 
@@ -53,17 +69,36 @@ func (b *Bridge) DiscoverWorkflows(ctx context.Context) ([]busclient.AgentInfo, 
 
 // Submit sends a request message to the appropriate agent for a given workflow capability.
 func (b *Bridge) Submit(ctx context.Context, token, workflow, caseID string, attachments []busclient.Attachment) error {
+	ctx, span := otel.Tracer("techtransfer-agency/operator").Start(ctx, "workflow.submit")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("workflow", workflow),
+		attribute.String("token", token),
+		attribute.String("case_id", caseID),
+		attribute.Int("attachment_count", len(attachments)),
+	)
+
 	agents, err := b.client.ListAgents(ctx, workflow)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("discover agents for %s: %w", workflow, err)
 	}
 	if len(agents) == 0 {
+		err := fmt.Errorf("no agents found for capability %q", workflow)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("no agents found for capability %q", workflow)
 	}
 
 	target := selectTargetAgent(workflow, agents)
 	conversationID := fmt.Sprintf("submission-%s-%s", token, workflow)
 	requestID := b.nextRequestID(workflow)
+	span.SetAttributes(
+		attribute.String("target_agent", target),
+		attribute.String("conversation_id", conversationID),
+		attribute.String("request_id", requestID),
+	)
 
 	bodyMap := map[string]any{
 		"task":    workflow,
@@ -88,8 +123,19 @@ func (b *Bridge) Submit(ctx context.Context, token, workflow, caseID string, att
 		map[string]any{"source": "operator", "token": token},
 	)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("send message for %s: %w", workflow, err)
 	}
+	b.trackFlow(conversationID, flowState{
+		Token:          token,
+		Workflow:       workflow,
+		TargetAgent:    target,
+		CaseID:         caseID,
+		RequestID:      requestID,
+		AttachmentCnt:  len(attachments),
+		SubmittedAtUTC: time.Now().UTC(),
+	})
 	return nil
 }
 
@@ -193,6 +239,7 @@ func (b *Bridge) poll(ctx context.Context) {
 	b.SetCursor(next)
 
 	for _, evt := range events {
+		b.observeResult(ctx, evt)
 		switch evt.Type {
 		case "response":
 			if isErrorResponse(evt.Meta) {
@@ -211,6 +258,53 @@ func (b *Bridge) poll(ctx context.Context) {
 		}
 		// Ack all messages.
 		_ = b.client.Ack(ctx, b.agentID, b.secret, evt.MessageID, "accepted", "")
+	}
+}
+
+func (b *Bridge) trackFlow(conversationID string, state flowState) {
+	b.flowMu.Lock()
+	b.flows[conversationID] = state
+	b.flowMu.Unlock()
+}
+
+func (b *Bridge) popFlow(conversationID string) (flowState, bool) {
+	b.flowMu.Lock()
+	defer b.flowMu.Unlock()
+	state, ok := b.flows[conversationID]
+	if ok {
+		delete(b.flows, conversationID)
+	}
+	return state, ok
+}
+
+func (b *Bridge) observeResult(ctx context.Context, evt busclient.InboxEvent) {
+	state, ok := b.popFlow(evt.ConversationID)
+	if !ok {
+		return
+	}
+	_, span := otel.Tracer("techtransfer-agency/operator").Start(ctx, "workflow.result")
+	defer span.End()
+
+	status := "completed"
+	if evt.Type == "error" || isErrorResponse(evt.Meta) {
+		status = "error"
+	}
+	span.SetAttributes(
+		attribute.String("workflow", state.Workflow),
+		attribute.String("token", state.Token),
+		attribute.String("case_id", state.CaseID),
+		attribute.String("target_agent", state.TargetAgent),
+		attribute.String("conversation_id", evt.ConversationID),
+		attribute.String("request_id", state.RequestID),
+		attribute.String("event_type", evt.Type),
+		attribute.String("result_status", status),
+		attribute.String("from_agent", evt.From),
+		attribute.String("message_id", evt.MessageID),
+		attribute.Int("attachment_count", state.AttachmentCnt),
+		attribute.Float64("workflow.elapsed_ms", float64(time.Since(state.SubmittedAtUTC).Milliseconds())),
+	)
+	if status == "error" {
+		span.SetStatus(codes.Error, "workflow failed")
 	}
 }
 

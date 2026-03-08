@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/joelkehle/techtransfer-agency/internal/operator"
+	"github.com/joelkehle/techtransfer-agency/internal/telemetry"
 )
 
 func main() {
@@ -47,6 +48,17 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+	shutdownTelemetry, err := telemetry.InitFromEnv(ctx, "operator")
+	if err != nil {
+		log.Fatalf("init telemetry: %v", err)
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		if err := shutdownTelemetry(shutdownCtx); err != nil {
+			log.Printf("telemetry shutdown error: %v", err)
+		}
+	}()
 
 	if err := bridge.Register(ctx); err != nil {
 		log.Printf("warning: initial bus registration failed: %v (will retry via heartbeat)", err)
