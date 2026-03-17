@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joelkehle/pinakes/pkg/busclient"
 	"github.com/joelkehle/techtransfer-agency/internal/patentscreen"
-	"github.com/joelkehle/techtransfer-agency/pkg/busclient"
 )
 
 // WorkflowLabel provides a human-readable name for a capability.

@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/joelkehle/pinakes/pkg/busclient"
 	"github.com/joelkehle/techtransfer-agency/internal/bus"
-	"github.com/joelkehle/techtransfer-agency/pkg/busclient"
 	"github.com/joelkehle/techtransfer-agency/internal/httpapi"
 	"github.com/joelkehle/techtransfer-agency/internal/operator"
 )

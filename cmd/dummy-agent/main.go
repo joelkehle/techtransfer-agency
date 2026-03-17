@@ -12,8 +12,10 @@ import (
 	"os/signal"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
-	"github.com/joelkehle/techtransfer-agency/pkg/busclient"
+	"github.com/joelkehle/pinakes/pkg/busclient"
 )
 
 func main() {
@@ -107,8 +109,7 @@ func main() {
 
 func generateReport(capability, requestBody string) string {
 	now := time.Now().Format("2006-01-02 15:04:05 MST")
-	cap := strings.ReplaceAll(capability, "-", " ")
-	cap = strings.Title(cap)
+	cap := titleWords(strings.ReplaceAll(capability, "-", " "))
 
 	return fmt.Sprintf(`%s Report
 Generated: %s
@@ -143,4 +144,16 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+func titleWords(s string) string {
+	parts := strings.Fields(strings.TrimSpace(s))
+	for i, part := range parts {
+		r, size := utf8.DecodeRuneInString(part)
+		if r == utf8.RuneError && size == 0 {
+			continue
+		}
+		parts[i] = string(unicode.ToUpper(r)) + strings.ToLower(part[size:])
+	}
+	return strings.Join(parts, " ")
 }

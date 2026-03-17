@@ -1,6 +1,6 @@
 package marketanalysis
 
-import "github.com/joelkehle/techtransfer-agency/pkg/busclient"
+import "github.com/joelkehle/pinakes/pkg/busclient"
 
 type Attachment = busclient.Attachment
 type InboxEvent = busclient.InboxEvent

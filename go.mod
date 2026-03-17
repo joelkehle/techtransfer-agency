@@ -7,6 +7,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20241003230502-a4a8f7c660df
 	github.com/chromedp/chromedp v0.11.0
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/joelkehle/pinakes v0.0.0-20260317134725-d1c4cee3a277
 	github.com/yuin/goldmark v1.7.13
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.38.0
