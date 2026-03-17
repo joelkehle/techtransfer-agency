@@ -1,31 +1,47 @@
 # Decisions And Backlog
 
-Last updated: 2026-03-04
+Last updated: 2026-03-17
 
 This document tracks architecture/ops decisions and follow-up work discussed during migration + demo hardening.
+
+Related migration plan:
+
+- `docs/AGENT_BUS_EXTRACTION_CHECKLIST.md` - PR-by-PR plan for extracting the bus into a dedicated repo
+- `docs/UCLA_REPO_PROMOTION_PLAN.md` - plan for promoting `tdg-ip-agents` into the UCLA customer/product repo
 
 ## Confirmed Decisions
 
 ### Repo Ownership
 
-- `tdg-ip-agents` is the UCLA SME agent repo.
-- `techtransfer-agency` remains infrastructure + shared utilities.
-- `pkg/busclient` stays in `techtransfer-agency` and is consumed as a Go module from there (no extra repo).
-- `render-patent-report` stays in `techtransfer-agency` as shared utility infrastructure.
-- Extractors stay infra-side (`patent-extractor`, `prior-art-extractor`, `market-extractor`).
+- `tdg-ip-agents` is the target UCLA product repo, not just the SME-agent repo.
+- `pinakes` is the target authoritative bus repo.
+- `techtransfer-agency` is a transition repo during extraction; it should end either as a very small infra/shared repo or be retired.
+- `pkg/busclient` stays in `techtransfer-agency` for the SME-agent split completed on 2026-03-04. That note is historical, not a veto on later extraction. For the later bus split, see `docs/AGENT_BUS_EXTRACTION_CHECKLIST.md` and `docs/UCLA_REPO_PROMOTION_PLAN.md`.
+- operator is UCLA product code, not bus infrastructure.
+- current PDF utilities are UCLA product code, not bus infrastructure.
 
 ### What Moves To `tdg-ip-agents`
 
+- operator/web UI
+- PDF utilities:
+  - `cmd/patent-extractor/` + `internal/pdfextractor/`
+  - `cmd/render-patent-report/`
 - `cmd/patent-screen/` + `internal/patentscreen/`
 - `cmd/prior-art-search/` + `internal/priorartsearch/`
+- `cmd/market-analysis/` + `internal/marketanalysis/` if UCLA wants a single three-agent deliverable repo
 
 ### What Stays In `techtransfer-agency`
 
-- Bus, Operator, `pkg/busclient`
-- Utility agents:
-  - `cmd/patent-extractor/` + `internal/pdfextractor/`
-  - `cmd/render-patent-report/`
-- `cmd/market-analysis/` + `internal/marketanalysis/`
+- short term during migration: existing mixed code until moves complete
+- long term: only explicitly shared infra that still justifies a standalone repo
+- if that list becomes trivial, sunset the repo
+
+### Bus Ownership / Compatibility
+
+- `pinakes` should assume no built-in operator and no built-in PDF pipeline.
+- `pinakes` owns protocol contract tests and semantic versioning policy.
+- consumer repos pin bus releases/tags.
+- breaking protocol or public API changes require a major version bump.
 
 ### Compose / Runtime
 

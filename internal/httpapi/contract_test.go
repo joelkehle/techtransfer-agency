@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -62,6 +63,14 @@ func newContractServerPersistent(t *testing.T) http.Handler {
 		t.Fatalf("new persistent store: %v", err)
 	}
 	return NewServer(store)
+}
+
+func newContractServerWithEnv(t *testing.T, env map[string]string) http.Handler {
+	t.Helper()
+	for key, value := range env {
+		t.Setenv(key, value)
+	}
+	return newContractServer()
 }
 
 func doJSON(t *testing.T, c *http.Client, method, url string, body any, headers map[string]string) *http.Response {
@@ -171,8 +180,55 @@ func runContractAllEndpoints(t *testing.T, h http.Handler) {
 	injectReq := map[string]any{"identity": "joel", "conversation_id": "conv-1", "to": "b", "body": "human note"}
 	mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/inject", injectReq, nil), 200)
 
-	mustStatus(t, doJSON(t, c, http.MethodGet, ts.URL+"/v1/health", nil, nil), 200)
-	mustStatus(t, doJSON(t, c, http.MethodGet, ts.URL+"/v1/system/status", nil, nil), 200)
+	healthBody := mustStatus(t, doJSON(t, c, http.MethodGet, ts.URL+"/v1/health", nil, nil), 200)
+	var health struct {
+		OK      bool   `json:"ok"`
+		Status  string `json:"status"`
+		Agents  int    `json:"agents"`
+		Observe int    `json:"observe"`
+		Push    struct {
+			Successes int `json:"successes"`
+			Failures  int `json:"failures"`
+		} `json:"push"`
+	}
+	if err := json.Unmarshal(healthBody, &health); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if !health.OK || health.Status != "healthy" {
+		t.Fatalf("unexpected health payload: %s", string(healthBody))
+	}
+	if health.Agents != 2 {
+		t.Fatalf("health agents=%d want=2 payload=%s", health.Agents, string(healthBody))
+	}
+
+	systemBody := mustStatus(t, doJSON(t, c, http.MethodGet, ts.URL+"/v1/system/status", nil, nil), 200)
+	var system struct {
+		OK     bool `json:"ok"`
+		System struct {
+			AgentsActive  int `json:"agents_active"`
+			AgentsExpired int `json:"agents_expired"`
+			Conversations int `json:"conversations"`
+			Messages      int `json:"messages"`
+			ObserveEvents int `json:"observe_events"`
+			PushSuccesses int `json:"push_successes"`
+			PushFailures  int `json:"push_failures"`
+		} `json:"system"`
+	}
+	if err := json.Unmarshal(systemBody, &system); err != nil {
+		t.Fatalf("decode system status response: %v", err)
+	}
+	if !system.OK {
+		t.Fatalf("unexpected system status payload: %s", string(systemBody))
+	}
+	if system.System.AgentsActive != 2 || system.System.AgentsExpired != 0 {
+		t.Fatalf("unexpected agent counts in system status: %s", string(systemBody))
+	}
+	if system.System.Conversations != 1 {
+		t.Fatalf("unexpected conversation count in system status: %s", string(systemBody))
+	}
+	if system.System.Messages != 2 {
+		t.Fatalf("unexpected message count in system status: %s", string(systemBody))
+	}
 }
 
 func TestContractAllEndpoints(t *testing.T) {
@@ -373,5 +429,102 @@ func TestContractPushModeCallbackDelivery(t *testing.T) {
 	}
 	if atomic.LoadInt32(&callbackCount) < 1 {
 		t.Fatalf("expected callback to be invoked at least once")
+	}
+}
+
+func TestContractRegisterHonorsAgentAllowlist(t *testing.T) {
+	h := newContractServerWithEnv(t, map[string]string{
+		"AGENT_ALLOWLIST": "alpha,beta",
+	})
+	ts := httptest.NewServer(h)
+	defer func() {
+		ts.CloseClientConnections()
+		ts.Close()
+	}()
+	c := &http.Client{
+		Transport: &http.Transport{DisableKeepAlives: true},
+	}
+
+	bodyDenied := mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/agents/register", map[string]any{
+		"agent_id": "gamma", "capabilities": []string{"worker"}, "mode": "pull", "ttl": 60, "secret": "secret-gamma",
+	}, nil), http.StatusUnauthorized)
+	if !bytes.Contains(bodyDenied, []byte("agent_id not allowlisted")) {
+		t.Fatalf("expected allowlist denial, got: %s", string(bodyDenied))
+	}
+
+	bodyAllowed := mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/agents/register", map[string]any{
+		"agent_id": " alpha ", "capabilities": []string{"worker"}, "mode": "pull", "ttl": 60, "secret": "secret-alpha",
+	}, nil), http.StatusOK)
+	if !bytes.Contains(bodyAllowed, []byte(`"agent_id":"alpha"`)) {
+		t.Fatalf("expected trimmed allowed agent id, got: %s", string(bodyAllowed))
+	}
+}
+
+func TestContractInjectHonorsHumanAllowlist(t *testing.T) {
+	h := newContractServerWithEnv(t, map[string]string{
+		"HUMAN_ALLOWLIST": "joel,alex",
+	})
+	ts := httptest.NewServer(h)
+	defer func() {
+		ts.CloseClientConnections()
+		ts.Close()
+	}()
+	c := &http.Client{
+		Transport: &http.Transport{DisableKeepAlives: true},
+	}
+
+	regA := map[string]any{"agent_id": "a", "capabilities": []string{"orchestrator"}, "mode": "pull", "ttl": 60, "secret": "secret-a"}
+	regB := map[string]any{"agent_id": "b", "capabilities": []string{"worker"}, "mode": "pull", "ttl": 60, "secret": "secret-b"}
+	mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/agents/register", regA, nil), http.StatusOK)
+	mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/agents/register", regB, nil), http.StatusOK)
+	mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/conversations", map[string]any{
+		"conversation_id": "conv-human", "participants": []string{"a", "b"},
+	}, nil), http.StatusOK)
+
+	denied := mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/inject", map[string]any{
+		"identity": "sam", "conversation_id": "conv-human", "to": "b", "body": "not allowed",
+	}, nil), http.StatusUnauthorized)
+	if !bytes.Contains(denied, []byte("human identity not allowed")) {
+		t.Fatalf("expected human allowlist denial, got: %s", string(denied))
+	}
+
+	allowed := mustStatus(t, doJSON(t, c, http.MethodPost, ts.URL+"/v1/inject", map[string]any{
+		"identity": "joel", "conversation_id": "conv-human", "to": "b", "body": "allowed",
+	}, nil), http.StatusOK)
+	if !bytes.Contains(allowed, []byte(`"ok":true`)) {
+		t.Fatalf("expected allowed inject response, got: %s", string(allowed))
+	}
+}
+
+func TestBusConfigSurfaceDocumented(t *testing.T) {
+	const docPath = "../../docs/BUS_HTTP_CONTRACT.md"
+	blob, err := os.ReadFile(docPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", docPath, err)
+	}
+	text := string(blob)
+	for _, needle := range []string{
+		"PORT",
+		"DB_PATH",
+		"STORE_BACKEND",
+		"STATE_FILE",
+		"AGENT_ALLOWLIST",
+		"HUMAN_ALLOWLIST",
+		"--db",
+		"GracePeriod = 30s",
+		"ProgressMinInterval = 2s",
+		"IdempotencyWindow = 24h",
+		"InboxWaitMax = 60s",
+		"AckTimeout = 10s",
+		"DefaultMessageTTL = 600s",
+		"DefaultRegistrationTTL = 60s",
+		"PushMaxAttempts = 3",
+		"PushBaseBackoff = 500ms",
+		"MaxInboxEventsPerAgent = 10000",
+		"MaxObserveEvents = 50000",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("expected %s to be documented in %s", needle, docPath)
+		}
 	}
 }

@@ -4,6 +4,8 @@ Visual diagram: [architecture.html](/architecture.html) (served at techtransfer.
 
 Tracking:
 - Decisions + backlog: `docs/DECISIONS_AND_BACKLOG.md`
+- Migration target: `docs/AGENT_BUS_EXTRACTION_CHECKLIST.md`
+- UCLA promotion target: `docs/UCLA_REPO_PROMOTION_PLAN.md`
 
 ## Repositories
 
@@ -11,6 +13,16 @@ Tracking:
 |------|-------|---------|
 | `techtransfer-agency` | Infrastructure | HTTP bus, operator, utility agents, shared client library |
 | `tdg-ip-agents` | UCLA TDG | Patent eligibility screen, prior art search |
+
+## Target Split After Bus Extraction
+
+Planned target architecture:
+
+- `pinakes` - reusable bus/runtime/client/discovery substrate
+- `tdg-ip-agents` - UCLA product repo: operator, PDF utilities, UCLA agents, deploy packaging
+- `techtransfer-agency` - transition repo while code moves; later either explicit small infra repo or sunset candidate
+
+The rest of this document describes the current mixed deployment shape before that split is finished.
 
 ## Layers
 
@@ -31,10 +43,10 @@ Core message router. Agents register with a capability and HMAC secret,
 poll an inbox, ack messages, and post responses. The bus has no knowledge
 of what agents do — it routes by capability name.
 
-**Bus Client** (`pkg/busclient`)
+**Bus Client** (`pinakes/pkg/busclient`)
 Shared Go module for agent-to-bus communication: registration, heartbeat,
 inbox polling, message ack, response posting. Imported by all agent repos
-via `github.com/joelkehle/techtransfer-agency/pkg/busclient`.
+via `github.com/joelkehle/pinakes/pkg/busclient`.
 
 ### 3. Utility Agents
 
