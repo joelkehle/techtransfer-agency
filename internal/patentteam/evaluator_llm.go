@@ -154,9 +154,7 @@ func EvaluatePatentEligibilityLLM(ctx context.Context, caseID, extractedText str
 		if idx := strings.Index(cleaned[3:], "\n"); idx >= 0 {
 			cleaned = cleaned[3+idx+1:]
 		}
-		if strings.HasSuffix(cleaned, "```") {
-			cleaned = cleaned[:len(cleaned)-3]
-		}
+		cleaned = strings.TrimSuffix(cleaned, "```")
 		cleaned = strings.TrimSpace(cleaned)
 	}
 

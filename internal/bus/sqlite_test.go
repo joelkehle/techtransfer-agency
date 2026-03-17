@@ -6,31 +6,6 @@ import (
 	"time"
 )
 
-func newTestSQLiteStore(t *testing.T) (*SQLiteStore, *time.Time) {
-	t.Helper()
-	now := time.Date(2026, 2, 17, 0, 0, 0, 0, time.UTC)
-	dbPath := filepath.Join(t.TempDir(), "test.db")
-	store, err := NewSQLiteStore(dbPath, Config{
-		GracePeriod:            30 * time.Second,
-		ProgressMinInterval:    2 * time.Second,
-		IdempotencyWindow:      24 * time.Hour,
-		InboxWaitMax:           2 * time.Second,
-		AckTimeout:             10 * time.Second,
-		DefaultMessageTTL:      600 * time.Second,
-		DefaultRegistrationTTL: 60 * time.Second,
-		PushMaxAttempts:        3,
-		PushBaseBackoff:        10 * time.Millisecond,
-		Clock: func() time.Time {
-			return now
-		},
-	})
-	if err != nil {
-		t.Fatalf("new sqlite store: %v", err)
-	}
-	t.Cleanup(func() { store.Close() })
-	return store, &now
-}
-
 func TestSQLiteRoundTrip(t *testing.T) {
 	tmp := t.TempDir()
 	dbPath := filepath.Join(tmp, "roundtrip.db")

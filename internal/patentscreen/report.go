@@ -1,7 +1,6 @@
 package patentscreen
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -395,31 +394,6 @@ func writeSkipExplanation(b *strings.Builder, stage string, result PipelineResul
 		fmt.Fprintf(b, "This stage was skipped based on the results of prior stages. "+
 			"See the stages above for the determination that made this stage unnecessary.\n\n")
 	}
-}
-
-func flowDecision(stage string, r PipelineResult) string {
-	for _, s := range r.Metadata.StagesSkipped {
-		if s == stage {
-			return "skipped via early exit"
-		}
-	}
-	switch {
-	case stage == "stage_2" && r.Pathway == PathwayA:
-		return "exited eligibility track"
-	case stage == "stage_3" && r.Pathway == PathwayB1:
-		return "exited eligibility track"
-	case stage == "stage_4" && r.Pathway == PathwayB2:
-		return "exited eligibility track"
-	}
-	return "continued / executed"
-}
-
-func prettyJSON(v any) string {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return "{}"
-	}
-	return string(b)
 }
 
 func sanitizeLine(s string) string {

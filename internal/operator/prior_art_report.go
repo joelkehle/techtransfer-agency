@@ -352,9 +352,7 @@ func buildPriorArtTraceabilitySection(
 		sanitizeMarkdownCell(stage4Status),
 		sanitizeMarkdownCell(stage4Output),
 	))
-	b.WriteString(fmt.Sprintf(
-		"| Report Builder (Completed) | Structured stage outputs and run metadata. | Human-readable summary, closest patents, claim-chart coverage, recommendations, and this traceability trail. |\n",
-	))
+	b.WriteString("| Report Builder (Completed) | Structured stage outputs and run metadata. | Human-readable summary, closest patents, claim-chart coverage, recommendations, and this traceability trail. |\n")
 	b.WriteString("\n")
 	b.WriteString("- **Run flags:** fallback mode = " + yesNo(degraded) + "; assessment subset capped = " + yesNo(assessmentTruncated) + ".\n")
 	stagesExecuted := stringSliceFromAny(metadata["stages_executed"])
